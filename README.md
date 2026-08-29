@@ -8,9 +8,11 @@ is set up the whole thing works with the network switched off.
 
 It installs to the home screen on **both Android and iPhone**.
 
-> **Start here if you just want it on your phone:**
-> [`docs/install-on-your-phone.md`](docs/install-on-your-phone.md) — a step-by-step
-> tutorial that assumes no technical knowledge.
+> **It is live at [https://fdavchev.github.io/Book-Scanner/](https://fdavchev.github.io/Book-Scanner/)**
+> — open that on your phone and install it from there.
+>
+> **Step-by-step, assuming no technical knowledge:**
+> [`docs/install-on-your-phone.md`](docs/install-on-your-phone.md).
 
 ---
 

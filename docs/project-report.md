@@ -196,11 +196,27 @@ of what the app can do.
   estimated ~14 MB per language; the integer-quantised models are far smaller and,
   measured, no less accurate.
 
+### The published site (VERIFIED by live run)
+
+The app is deployed at **https://fdavchev.github.io/Book-Scanner/** and was driven against
+that live address, not a local server:
+
+- the page loads and the manifest resolves with `start_url` and `scope` of `/Book-Scanner/`
+- the vendored OCR asset list resolves under the subpath
+- a cover was scanned through the live site and detected as
+  **"The Glass Cathedral" / "Amara Osei"** — correct
+- it saved and appeared in My Books
+
+This matters because GitHub Pages serves a project site from a subpath rather than the
+domain root, which breaks any app that assumes it is at `/`. That case has its own
+end-to-end test (`tests/e2e/subpath.spec.ts`) as well as this live run.
+
 ## 7. What is NOT VERIFIED
 
 Stated plainly.
 
-- **Installing on a physical iPhone.** There is no iPhone in this environment. The iOS
+- **Installing on a physical iPhone.** There is no iPhone in this environment. The site
+  it would install from is live and verified (above). The iOS
   install steps in `docs/install-on-your-phone.md` are written from Apple's documented
   behaviour. The app's side of it *is* verified: the manifest, the apple-touch-icon, the
   iOS meta tags, and the Add-to-Home-Screen hint that only appears on iOS Safari. The

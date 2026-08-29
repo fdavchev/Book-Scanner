@@ -44,12 +44,14 @@ five-minute checklist that would close this.
 
 ## Publishing
 
-The GitHub repository is `https://github.com/fdavchev/Book-Scanner` (public).
+The GitHub repository is `https://github.com/fdavchev/Book-Scanner` (public), and the app
+is **live at https://fdavchev.github.io/Book-Scanner/** — verified by a live run that
+scanned a cover through the deployed site and saved it.
 
-To put the app online: `npm run deploy`. It builds with the correct base path for GitHub
+To re-publish after a change: `npm run deploy`. It builds with the correct base path for GitHub
 Pages — a project site is served from `/Book-Scanner/`, not the root — pushes `dist/` to
-the `gh-pages` branch, and prints the address. Pages then has to be pointed at the
-`gh-pages` branch once, by hand, in the repository's Settings → Pages.
+the `gh-pages` branch, and prints the address. GitHub enabled Pages for the `gh-pages` branch automatically on the first push; if a
+future repository does not, it is one toggle in Settings → Pages.
 
 That subpath build is covered by its own end-to-end test (`tests/e2e/subpath.spec.ts`),
 which builds it, serves it from a subpath and scans a cover through it.

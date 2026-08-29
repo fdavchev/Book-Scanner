@@ -12,6 +12,18 @@ It works on both Android and iPhone. The steps differ, so each has its own part 
 
 ## Part 0 — Put the app somewhere your phone can open
 
+> **Already done — skip straight to Part 1 or Part 2.**
+>
+> The app is published and live at:
+>
+> ### https://fdavchev.github.io/Book-Scanner/
+>
+> Open that address on your phone. It works from anywhere, on any network, with the
+> laptop switched off. The rest of Part 0 is only needed if you want to publish your own
+> copy or change the app and re-publish it.
+>
+> To re-publish after changing something: `npm run deploy`.
+
 This is the only fiddly bit, and it only has to be done once. Your phone needs a web
 address to open. There are two ways to give it one.
 
