@@ -1,0 +1,107 @@
+[
+  {
+    "id": "silent-orchard",
+    "file": "silent-orchard.png",
+    "title": "The Silent Orchard",
+    "author": "Marta Reyes",
+    "layout": "top-caps-dark"
+  },
+  {
+    "id": "winter-letters",
+    "file": "winter-letters.png",
+    "title": "Winter Letters",
+    "author": "Jonas Lindqvist",
+    "layout": "centre-serif-light"
+  },
+  {
+    "id": "iron-harvest",
+    "file": "iron-harvest.png",
+    "title": "Iron Harvest",
+    "author": "D. K. Whitlock",
+    "layout": "bottom-caps-dark"
+  },
+  {
+    "id": "glass-cathedral",
+    "file": "glass-cathedral.png",
+    "title": "The Glass Cathedral",
+    "author": "Amara Osei",
+    "layout": "top-serif-light"
+  },
+  {
+    "id": "salt-and-ash",
+    "file": "salt-and-ash.png",
+    "title": "Salt and Ash",
+    "author": "Peter Vance",
+    "layout": "centre-caps-dark"
+  },
+  {
+    "id": "north-of-nowhere",
+    "file": "north-of-nowhere.png",
+    "title": "North of Nowhere",
+    "author": "Helena Brandt",
+    "layout": "top-caps-light"
+  },
+  {
+    "id": "quiet-machine",
+    "file": "quiet-machine.png",
+    "title": "The Quiet Machine",
+    "author": "Yuki Tanaka",
+    "layout": "centre-serif-dark"
+  },
+  {
+    "id": "last-cartographer",
+    "file": "last-cartographer.png",
+    "title": "The Last Cartographer",
+    "author": "Owen Mbeki",
+    "layout": "bottom-serif-light"
+  },
+  {
+    "id": "burning-season",
+    "file": "burning-season.png",
+    "title": "Burning Season",
+    "author": "Clara Nowak",
+    "layout": "top-caps-dark"
+  },
+  {
+    "id": "thirteen-doors",
+    "file": "thirteen-doors.png",
+    "title": "Thirteen Doors",
+    "author": "S. J. Ferreira",
+    "layout": "centre-caps-light"
+  },
+  {
+    "id": "river-of-stone",
+    "file": "river-of-stone.png",
+    "title": "The River of Stone",
+    "author": "Nadia Ivanova",
+    "layout": "bottom-caps-light"
+  },
+  {
+    "id": "paper-tigers",
+    "file": "paper-tigers.png",
+    "title": "Paper Tigers",
+    "author": "Miguel Santos",
+    "layout": "top-serif-dark"
+  },
+  {
+    "id": "hollow-crownwork",
+    "file": "hollow-crownwork.png",
+    "title": "The Hollow Crownwork",
+    "author": "Eleanor Fitzgibbon",
+    "layout": "centre-serif-light"
+  },
+  {
+    "id": "midnight-signal",
+    "file": "midnight-signal.png",
+    "title": "Midnight Signal",
+    "author": "Ray Okonkwo",
+    "layout": "bottom-caps-dark"
+  },
+  {
+    "id": "weight-of-water",
+    "file": "weight-of-water.png",
+    "title": "The Weight of Water",
+    "author": "Ingrid Solberg",
+    "layout": "top-caps-light"
+  }
+]

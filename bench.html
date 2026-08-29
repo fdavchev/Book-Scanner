@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Book Scanner — pipeline bench harness</title>
+  </head>
+  <body>
+    <p>Dev-only harness. <code>npm run benchmark</code> drives this page with Playwright.</p>
+    <pre id="log"></pre>
+    <script type="module">
+      import { prepare } from '/src/pipeline/preprocess.ts'
+      import { TesseractPool, readImage } from '/src/pipeline/ocr.ts'
+      import { detect, groupLines, isNoise } from '/src/pipeline/candidates.ts'
+
+      /** Photographic degradation, so the numbers reflect phone photos, not clean artwork. */
+      async function degrade(blob, { rotate = 3, blur = 0.6, darken = 0.85, quality = 0.4 } = {}) {
+        const bitmap = await createImageBitmap(blob)
+        const canvas = document.createElement('canvas')
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        const ctx = canvas.getContext('2d')
+        ctx.filter = `blur(${blur}px) brightness(${darken})`
+        ctx.translate(canvas.width / 2, canvas.height / 2)
+        ctx.rotate((rotate * Math.PI) / 180)
+        ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2)
+        bitmap.close()
+        return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+      }
+
+      function base64ToBlob(base64, type = 'application/octet-stream') {
+        const binary = atob(base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        return new Blob([bytes], { type })
+      }
+
+      let pool = null
+
+      window.bench = {
+        async init(languages = ['eng'], paths = {}) {
+          pool = await TesseractPool.create(languages, 1, undefined, paths)
+          return true
+        },
+        async run(base64, options = {}) {
+          let blob = base64ToBlob(base64, options.type)
+          if (options.degrade) blob = await degrade(blob, options.degrade)
+          const started = performance.now()
+          const prepared = await prepare(blob, options.longEdge ?? 1600, options.maxUpscale)
+          // `variant` is a bench-only override used to compare preprocessing strategies.
+          const ocr =
+            options.variant && options.variant !== 'auto'
+              ? await pool.recognise(prepared[options.variant], options.psm, options.dpi)
+              : await readImage(pool, prepared)
+          const detection = detect(ocr)
+          return {
+            ...detection,
+            ms: Math.round(performance.now() - started),
+            meanConfidence: Math.round(ocr.meanConfidence),
+            lineCount: ocr.lines.length,
+            thumbnailBytes: prepared.thumbnail.size,
+            rawText: ocr.text,
+          }
+        },
+        /** Per-cover dump used while tuning the scorer: every OCR line and every candidate. */
+        async diagnose(base64, options = {}) {
+          let blob = base64ToBlob(base64, options.type)
+          if (options.degrade) blob = await degrade(blob, options.degrade)
+          const prepared = await prepare(blob, options.longEdge ?? 1600, options.maxUpscale)
+          const ocr = await readImage(pool, prepared)
+          return {
+            size: [ocr.width, ocr.height],
+            lines: ocr.lines.map((l) => ({
+              text: l.text,
+              conf: Math.round(l.confidence),
+              y0: l.bbox.y0,
+              y1: l.bbox.y1,
+              x0: l.bbox.x0,
+              x1: l.bbox.x1,
+              noise: isNoise(l.text),
+            })),
+            candidates: groupLines(ocr.lines, ocr.height).map((c) => ({
+              text: c.text,
+              height: Math.round(c.height),
+              conf: Math.round(c.confidence),
+              centreY: Number(c.centreY.toFixed(2)),
+            })),
+            detection: detect(ocr),
+          }
+        },
+        async dispose() {
+          await pool?.terminate()
+          pool = null
+        },
+      }
+      window.benchReady = true
+    </script>
+  </body>
+</html>

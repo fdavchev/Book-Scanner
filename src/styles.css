@@ -1,0 +1,402 @@
+/* Design tokens. Light by default, dark via prefers-color-scheme — no framework, so the
+   offline bundle stays small. */
+:root {
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --surface-2: #f2eee8;
+  --border: #e2dcd2;
+  --text: #1c1917;
+  --text-dim: #6b6259;
+  --accent: #8c3b2e;
+  --accent-text: #ffffff;
+  --good: #2f6f4f;
+  --warn: #9a6114;
+  --bad: #a33a2a;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgb(28 25 23 / 8%), 0 4px 14px rgb(28 25 23 / 6%);
+  --tap: 46px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16151a;
+    --surface: #201f26;
+    --surface-2: #2a2932;
+    --border: #38363f;
+    --text: #f2efe9;
+    --text-dim: #a29c94;
+    --accent: #e08a6c;
+    --accent-text: #1a1014;
+    --good: #6cc39a;
+    --warn: #e0b062;
+    --bad: #e08a7c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 30%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  /* Respect the iPhone notch and home indicator inside a standalone home-screen app. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+main {
+  flex: 1;
+  padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 4px 0 16px;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 24px 0 10px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------------ controls */
+
+button {
+  font: inherit;
+  min-height: var(--tap);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--text-dim);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+button.big {
+  width: 100%;
+  min-height: 60px;
+  font-size: 1.1rem;
+}
+
+button.danger {
+  color: var(--bad);
+}
+
+button.link {
+  min-height: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.field + .field {
+  margin-top: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ------------------------------------------------------------------ surfaces */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.banner {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.pill.on .dot {
+  background: var(--good);
+}
+
+.pill.off .dot {
+  background: var(--text-dim);
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
+.chip.high {
+  color: var(--good);
+}
+
+.chip.medium {
+  color: var(--warn);
+}
+
+.chip.low {
+  color: var(--bad);
+}
+
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+/* ------------------------------------------------------------------ book list */
+
+.book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.book-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+}
+
+.cover {
+  width: 52px;
+  height: 74px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.cover.large {
+  width: 92px;
+  height: 132px;
+}
+
+.book-row .meta {
+  min-width: 0;
+}
+
+.book-row .title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------------ scanning */
+
+.scan-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.scan-item:last-child {
+  border-bottom: 0;
+}
+
+.crop-area {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.crop-area img {
+  display: block;
+  width: 100%;
+}
+
+.crop-box {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgb(140 59 46 / 18%);
+  pointer-events: none;
+}
+
+video.preview {
+  width: 100%;
+  border-radius: var(--radius);
+  background: #000;
+}
+
+/* ------------------------------------------------------------------ tab bar */
+
+nav.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+nav.tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  min-height: 62px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+nav.tabs button[aria-current='page'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+nav.tabs .glyph {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
