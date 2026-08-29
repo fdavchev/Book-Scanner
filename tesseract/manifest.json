@@ -1,0 +1,27 @@
+{
+  "generated": "2026-08-29T15:50:35.478Z",
+  "worker": [
+    "tesseract/worker.min.js"
+  ],
+  "core": [
+    "tesseract/core/tesseract-core-lstm.wasm.js",
+    "tesseract/core/tesseract-core-relaxedsimd-lstm.wasm.js",
+    "tesseract/core/tesseract-core-relaxedsimd.wasm.js",
+    "tesseract/core/tesseract-core-simd-lstm.wasm.js",
+    "tesseract/core/tesseract-core-simd.wasm.js",
+    "tesseract/core/tesseract-core.wasm.js"
+  ],
+  "lang": [
+    {
+      "code": "eng",
+      "url": "tesseract/lang/eng.traineddata.gz",
+      "bytes": 2952873
+    },
+    {
+      "code": "mkd",
+      "url": "tesseract/lang/mkd.traineddata.gz",
+      "bytes": 719182
+    }
+  ],
+  "totalBytes": 29561188
+}
