@@ -113,7 +113,7 @@ npm run preview      # serve the built app
 
 ```bash
 npm test             # 103 unit tests (vitest)
-npm run test:e2e     # 24 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
+npm run test:e2e     # 25 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
 ```
 
 ### Measuring accuracy

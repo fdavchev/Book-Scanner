@@ -96,7 +96,7 @@ in a missing author; it never replaces a book with an unrelated one.
 | Storage | CRUD, trimming, defaults, ordering, cover bytes round-tripping, settings merge, export/import incl. malformed files |
 | Search | title and author, case/accents, multi-token narrowing, Cyrillic, prefix matching |
 
-### End-to-end tests — 24, all passing (VERIFIED by automated test)
+### End-to-end tests — 25 passing, 2 skipped (VERIFIED by automated test)
 
 `npm run test:e2e`. Run against the **built** app served by `vite preview`, so the service
 worker and manifest are real. Three device profiles: Desktop Chrome, **Pixel 7**
@@ -111,6 +111,11 @@ worker and manifest are real. Three device profiles: Desktop Chrome, **Pixel 7**
 - the lookup pill cycles auto → off → on and stays enabled throughout
 - the manifest exists, is `standalone`, has 192/512/maskable icons and an apple-touch-icon,
   and every icon file actually resolves
+- the app is built for a **GitHub Pages subpath**, served from one, and scanned through it —
+  the case the recommended install route actually produces
+
+Both skips are on the iPhone/WebKit project: the offline cold start, for the reason given
+below, and the subpath build, where one engine is enough to prove the URLs resolve.
 
 ### The offline guarantee (VERIFIED by automated test, Chromium)
 
