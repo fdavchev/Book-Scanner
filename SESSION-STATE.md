@@ -11,8 +11,8 @@ marked "cut first" in the plan) was not attempted — the reasoning is in
 
 | | |
 |---|---|
-| Unit tests | **133 passing** (`npm test`) |
-| End-to-end tests | **31 passing, 5 skipped** (`npm run test:e2e`) — Chromium, Pixel 7, iPhone 14/WebKit |
+| Unit tests | **136 passing** (`npm test`) |
+| End-to-end tests | **40 passing, 5 skipped** (`npm run test:e2e`) — Chromium, Pixel 7, iPhone 14/WebKit |
 | Typecheck / lint | clean (`npx tsc -b`, `npm run lint`) |
 | Title accuracy | **15/15** clean · **14/18** on the difficult set · **8/15** on low-res artwork |
 | Author accuracy | **15/15** clean · **15/18** difficult · **9/15** low-res |

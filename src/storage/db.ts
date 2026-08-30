@@ -7,10 +7,15 @@
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
+/** Whether the book has been read yet. */
+export type ReadStatus = 'read' | 'unread'
+
 export interface Book {
   id: string
   title: string
   author: string
+  /** Books are catalogued before they are read, so a new one starts unread. */
+  status: ReadStatus
   /** Epoch milliseconds. */
   dateAdded: number
   dateModified: number
@@ -49,9 +54,11 @@ export const DEFAULT_SETTINGS: Settings = {
  * stored in object store` when asked to store a Blob produced by a canvas. An
  * ArrayBuffer stores reliably in every engine, so the Blob is rebuilt on the way out.
  */
-export interface StoredBook extends Omit<Book, 'cover'> {
+export interface StoredBook extends Omit<Book, 'cover' | 'status'> {
   coverBytes?: ArrayBuffer
   coverType?: string
+  /** Optional: records written before reading status existed do not carry it. */
+  status?: ReadStatus
 }
 
 interface BookScannerDB extends DBSchema {
@@ -116,6 +123,8 @@ function fromStored(stored: StoredBook | undefined): Book | undefined {
   const { coverBytes, coverType, ...rest } = stored
   return {
     ...rest,
+    // Books saved before reading status existed have none; they are to-be-read.
+    status: rest.status ?? 'unread',
     cover: coverBytes ? new Blob([coverBytes], { type: coverType ?? 'image/jpeg' }) : undefined,
   }
 }
@@ -125,6 +134,7 @@ function fromStored(stored: StoredBook | undefined): Book | undefined {
 export interface NewBook {
   title: string
   author: string
+  status?: ReadStatus
   cover?: Blob
   confidence?: number
   source?: Book['source']
@@ -145,6 +155,7 @@ export async function addBook(input: NewBook): Promise<Book> {
     source: input.source ?? 'manual',
     ocrText: input.ocrText,
     photoCount: input.photoCount ?? 1,
+    status: input.status ?? 'unread',
   }
   const db = await getDb()
   await db.put('books', await toStored(book))
@@ -294,6 +305,7 @@ export async function importBooks(file: unknown): Promise<ImportResult> {
         author: rest.author ?? '',
         source: rest.source ?? 'manual',
         photoCount: rest.photoCount ?? 1,
+        status: rest.status === 'read' ? 'read' : 'unread',
         dateAdded: rest.dateAdded ?? Date.now(),
         dateModified: rest.dateModified ?? Date.now(),
         cover: cover ? await dataUrlToBlob(cover) : undefined,

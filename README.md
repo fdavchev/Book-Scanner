@@ -30,6 +30,8 @@ It installs to the home screen on **both Android and iPhone**.
   crop and rescan a shelf photo, or discard.
 - **Keep** — saved to the phone's own storage, with a small cover thumbnail, and
   searchable, editable and deletable afterwards.
+- **Track what you've read** — every book is green (read) or red (still to read). Tap the
+  badge in the list to flip it, and filter the library by either.
 - **Back up** — export the whole collection to a JSON file and import it back.
 
 ## Why a web app, not a native one
@@ -112,8 +114,8 @@ npm run preview      # serve the built app
 ### Tests
 
 ```bash
-npm test             # 133 unit tests (vitest)
-npm run test:e2e     # 31 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
+npm test             # 136 unit tests (vitest)
+npm run test:e2e     # 40 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
 ```
 
 ### Measuring accuracy

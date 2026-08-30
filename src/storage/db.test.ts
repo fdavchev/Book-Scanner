@@ -42,6 +42,31 @@ describe('books CRUD', () => {
     expect(saved.photoCount).toBe(1)
   })
 
+  it('starts a new book as still to be read', async () => {
+    // You catalogue a book before you read it, so unread is the honest default.
+    expect((await addBook({ title: 'Dune', author: '' })).status).toBe('unread')
+  })
+
+  it('remembers a book marked as read', async () => {
+    const saved = await addBook({ title: 'Dune', author: '' })
+    await updateBook(saved.id, { status: 'read' })
+    expect((await getBook(saved.id))?.status).toBe('read')
+  })
+
+  it('treats a book saved before reading status existed as unread', async () => {
+    const db = await getDb()
+    await db.put('books', {
+      id: 'legacy',
+      title: 'An older record',
+      author: '',
+      dateAdded: 1,
+      dateModified: 1,
+      source: 'manual',
+      photoCount: 1,
+    })
+    expect((await getBook('legacy'))?.status).toBe('unread')
+  })
+
   it('stores a cover and hands it back as a Blob with its type intact', async () => {
     const cover = new Blob(['jpeg-bytes'], { type: 'image/jpeg' })
     const saved = await addBook({ title: 'Dune', author: '', cover })
@@ -148,7 +173,7 @@ describe('search', () => {
 describe('export and import', () => {
   it('round-trips a collection including covers', async () => {
     const cover = new Blob(['cover-bytes'], { type: 'image/jpeg' })
-    await addBook({ title: 'Dune', author: 'Frank Herbert', cover, source: 'ocr' })
+    await addBook({ title: 'Dune', author: 'Frank Herbert', cover, source: 'ocr', status: 'read' })
     const file = await exportBooks()
     expect(file.format).toBe('book-scanner-export')
     expect(file.books[0].cover).toMatch(/^data:image\/jpeg;base64,/)
@@ -162,6 +187,7 @@ describe('export and import', () => {
     expect(restored.title).toBe('Dune')
     expect(restored.author).toBe('Frank Herbert')
     expect(restored.source).toBe('ocr')
+    expect(restored.status).toBe('read')
     expect(await restored.cover?.text()).toBe('cover-bytes')
   })
 

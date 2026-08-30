@@ -99,13 +99,13 @@ test('search narrows the library, and a book can be edited then deleted', async 
   await expect(page.getByTestId('book-row')).toHaveCount(1)
   await expect(page.getByTestId('book-row')).toContainText('Paper Tigers')
 
-  await page.getByTestId('book-row').click()
+  await page.getByTestId('open-book').click()
   await page.getByLabel('Title', { exact: true }).fill('Paper Tigers, Second Edition')
   await page.getByTestId('save-edit').click()
   await expect(page.getByTestId('book-row')).toContainText('Paper Tigers, Second Edition')
 
   page.on('dialog', (dialog) => dialog.accept())
-  await page.getByTestId('book-row').click()
+  await page.getByTestId('open-book').click()
   await page.getByTestId('delete-book').click()
   await expect(page.getByTestId('book-row')).toHaveCount(0)
 })
