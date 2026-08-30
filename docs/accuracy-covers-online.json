@@ -1,77 +1,77 @@
 {
   "summary": {
     "covers": 15,
-    "degraded": true,
-    "titleExact": 13,
-    "titleFuzzy": 13,
+    "degraded": false,
+    "titleExact": 15,
+    "titleFuzzy": 15,
     "authorHit": 14,
-    "medianMs": 235,
-    "medianThumbKb": 7
+    "medianMs": 3355,
+    "medianThumbKb": 6
   },
   "rows": [
     {
       "id": "silent-orchard",
       "expectedTitle": "The Silent Orchard",
       "expectedAuthor": "Marta Reyes",
-      "gotTitle": "The Silent",
+      "gotTitle": "The Silent Orchard",
       "gotAuthor": "Marta Reyes",
-      "titleExact": false,
-      "titleFuzzy": false,
-      "titleSimilarity": 0.56,
+      "titleExact": true,
+      "titleFuzzy": true,
+      "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 92,
+      "confidence": 73,
       "meanConfidence": 96,
-      "ms": 313,
+      "ms": 5169,
       "lineCount": 4,
-      "thumbnailBytes": 6112
+      "thumbnailBytes": 5956
     },
     {
       "id": "winter-letters",
       "expectedTitle": "Winter Letters",
       "expectedAuthor": "Jonas Lindqvist",
       "gotTitle": "Winter Letters",
-      "gotAuthor": "Jonas Lindqvist",
+      "gotAuthor": "Jenny Björklund",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
-      "authorHit": true,
-      "confidence": 98,
+      "authorHit": false,
+      "confidence": 45,
       "meanConfidence": 95,
-      "ms": 202,
+      "ms": 3244,
       "lineCount": 4,
-      "thumbnailBytes": 6441
+      "thumbnailBytes": 5555
     },
     {
       "id": "iron-harvest",
       "expectedTitle": "Iron Harvest",
       "expectedAuthor": "D. K. Whitlock",
       "gotTitle": "Iron Harvest",
-      "gotAuthor": "D. K. Whitlock",
+      "gotAuthor": "Dave Whitlock",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
+      "confidence": 45,
       "meanConfidence": 95,
-      "ms": 252,
+      "ms": 3924,
       "lineCount": 4,
-      "thumbnailBytes": 6367
+      "thumbnailBytes": 5784
     },
     {
       "id": "glass-cathedral",
       "expectedTitle": "The Glass Cathedral",
       "expectedAuthor": "Amara Osei",
       "gotTitle": "The Glass Cathedral",
-      "gotAuthor": "Amara Osej",
+      "gotAuthor": "Amara Osei",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 97,
-      "meanConfidence": 78,
-      "ms": 274,
-      "lineCount": 5,
-      "thumbnailBytes": 6715
+      "confidence": 93,
+      "meanConfidence": 93,
+      "ms": 3717,
+      "lineCount": 4,
+      "thumbnailBytes": 5484
     },
     {
       "id": "salt-and-ash",
@@ -83,27 +83,27 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
+      "confidence": 88,
       "meanConfidence": 96,
-      "ms": 203,
+      "ms": 3187,
       "lineCount": 3,
-      "thumbnailBytes": 5554
+      "thumbnailBytes": 5178
     },
     {
       "id": "north-of-nowhere",
       "expectedTitle": "North of Nowhere",
       "expectedAuthor": "Helena Brandt",
-      "gotTitle": "Helena Brandt",
-      "gotAuthor": "",
-      "titleExact": false,
-      "titleFuzzy": false,
-      "titleSimilarity": 0.06,
-      "authorHit": false,
-      "confidence": 83,
-      "meanConfidence": 95,
-      "ms": 169,
-      "lineCount": 3,
-      "thumbnailBytes": 7961
+      "gotTitle": "North of Nowhere",
+      "gotAuthor": "Helena Brandt",
+      "titleExact": true,
+      "titleFuzzy": true,
+      "titleSimilarity": 1,
+      "authorHit": true,
+      "confidence": 96,
+      "meanConfidence": 96,
+      "ms": 3355,
+      "lineCount": 5,
+      "thumbnailBytes": 6899
     },
     {
       "id": "quiet-machine",
@@ -115,11 +115,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 93,
-      "ms": 264,
+      "confidence": 45,
+      "meanConfidence": 96,
+      "ms": 3536,
       "lineCount": 4,
-      "thumbnailBytes": 6054
+      "thumbnailBytes": 5759
     },
     {
       "id": "last-cartographer",
@@ -131,11 +131,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 80,
-      "ms": 178,
+      "confidence": 96,
+      "meanConfidence": 95,
+      "ms": 2652,
       "lineCount": 4,
-      "thumbnailBytes": 6528
+      "thumbnailBytes": 5659
     },
     {
       "id": "burning-season",
@@ -147,27 +147,27 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 95,
-      "ms": 271,
+      "confidence": 89,
+      "meanConfidence": 96,
+      "ms": 2986,
       "lineCount": 5,
-      "thumbnailBytes": 7052
+      "thumbnailBytes": 6862
     },
     {
       "id": "thirteen-doors",
       "expectedTitle": "Thirteen Doors",
       "expectedAuthor": "S. J. Ferreira",
       "gotTitle": "Thirteen Doors",
-      "gotAuthor": "S. I. Ferreira",
+      "gotAuthor": "S. J. Ferreira",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 80,
-      "ms": 183,
+      "confidence": 96,
+      "meanConfidence": 95,
+      "ms": 2635,
       "lineCount": 3,
-      "thumbnailBytes": 7079
+      "thumbnailBytes": 5997
     },
     {
       "id": "river-of-stone",
@@ -179,11 +179,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
+      "confidence": 96,
       "meanConfidence": 95,
-      "ms": 183,
+      "ms": 4097,
       "lineCount": 4,
-      "thumbnailBytes": 6678
+      "thumbnailBytes": 5071
     },
     {
       "id": "paper-tigers",
@@ -195,11 +195,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 95,
-      "ms": 268,
+      "confidence": 45,
+      "meanConfidence": 96,
+      "ms": 3724,
       "lineCount": 4,
-      "thumbnailBytes": 5869
+      "thumbnailBytes": 5441
     },
     {
       "id": "hollow-crownwork",
@@ -211,11 +211,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 96,
+      "confidence": 95,
       "meanConfidence": 95,
-      "ms": 235,
+      "ms": 3428,
       "lineCount": 5,
-      "thumbnailBytes": 7407
+      "thumbnailBytes": 6206
     },
     {
       "id": "midnight-signal",
@@ -227,11 +227,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 97,
-      "meanConfidence": 93,
-      "ms": 250,
+      "confidence": 92,
+      "meanConfidence": 94,
+      "ms": 3135,
       "lineCount": 4,
-      "thumbnailBytes": 6773
+      "thumbnailBytes": 6173
     },
     {
       "id": "weight-of-water",
@@ -243,11 +243,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 98,
-      "meanConfidence": 94,
-      "ms": 207,
+      "confidence": 74,
+      "meanConfidence": 95,
+      "ms": 2618,
       "lineCount": 4,
-      "thumbnailBytes": 7194
+      "thumbnailBytes": 6275
     }
   ]
 }

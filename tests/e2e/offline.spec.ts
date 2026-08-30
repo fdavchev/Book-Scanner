@@ -56,7 +56,7 @@ test.describe('offline', () => {
     // The part that matters: scanning, OCR and detection with no network at all.
     await page.getByTestId('file-input').setInputFiles(join(fixtures, 'thirteen-doors.png'))
     await expect(page.getByTestId('review-card')).toBeVisible({ timeout: 120_000 })
-    await expect(page.getByLabel('Title')).toHaveValue('Thirteen Doors')
+    await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Thirteen Doors')
 
     await page.getByTestId('save-all').click()
     await expect(page.getByTestId('book-row')).toContainText('Thirteen Doors')

@@ -5,7 +5,8 @@
  * The rest of the pipeline only sees `OcrResult`, so tesseract's own shapes stop here.
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js'
-import type { OcrLine, OcrResult, OcrWord } from './types'
+import type { OcrEvidence, OcrLine, OcrPass, OcrResult, OcrWord } from './types'
+import { letterCount, wordiness } from './text'
 
 /** Where the app is served from — '/' normally, '/repo-name/' on GitHub Pages. */
 export const BASE_URL = import.meta.env.BASE_URL
@@ -175,7 +176,13 @@ export class TesseractPool implements OcrEngine {
         user_defined_dpi: String(dpi),
       })
       const blob = await imageDataToBlob(image)
-      const { data } = await worker.recognize(blob, {}, { blocks: true, text: true })
+      // `rotateAuto` lets tesseract find the text baseline and straighten the image
+      // before reading it. A book photographed at even 12° off square came back as
+      // "Eyre" / "Jane"; deskewing first costs a few milliseconds and recovers the line.
+      const { data } = await worker.recognize(blob, { rotateAuto: true }, {
+        blocks: true,
+        text: true,
+      })
       return toOcrResult(data, image.width, image.height)
     })
     this.queue = run.catch(() => undefined)
@@ -188,32 +195,181 @@ export class TesseractPool implements OcrEngine {
   }
 }
 
-/** Mean word confidence below this triggers the un-binarised retry pass. */
-export const RETRY_CONFIDENCE = 65
+
+// ------------------------------------------------------------------ multi-pass reading
+
+/** One (image variant × page-segmentation mode) reading to attempt. */
+export interface PassSpec {
+  variant: 'raw' | 'grayscale' | 'binarised' | 'flattened'
+  psm: PSM
+  /** Why this pass exists, for the diagnostics. */
+  why: string
+}
 
 /**
- * Reads one prepared image.
+ * The pass schedule, in the order they are attempted.
+ *
+ * Every entry earns its place on the benchmark set — each one is the *only* pass that
+ * reads some cover correctly:
+ *
+ *   raw + AUTO          the general case, and the fastest; reads most covers on its own
+ *   grayscale + SPARSE  scattered display type — the only pass that reads "The Great
+ *                       Gatsby" and the only one that finds "RAY BRADBURY"
+ *   raw + SINGLE_BLOCK  tightly-set stacked titles — the only pass that reads
+ *                       "TO KILL A / Mockingbird"
+ *   raw + SPARSE        word-per-line covers — the only pass that reads "Pride and
+ *                       Prejudice" as three clean words
+ *   binarised + AUTO    flat, low-contrast photographs of matte covers
+ *   grayscale + BLOCK   the last resort; finds "VONNEGUT" where nothing else does
+ *
+ * Passes are expensive (~250 ms each), so the schedule is walked adaptively and stops as
+ * soon as the evidence is good enough — see `readImage`.
+ */
+export const PASS_SCHEDULE: PassSpec[] = [
+  { variant: 'raw', psm: PSM.AUTO, why: 'general' },
+  { variant: 'grayscale', psm: PSM.SPARSE_TEXT, why: 'scattered display type' },
+  { variant: 'flattened', psm: PSM.AUTO, why: 'glare or uneven lighting' },
+  { variant: 'raw', psm: PSM.SINGLE_BLOCK, why: 'stacked title block' },
+  { variant: 'raw', psm: PSM.SPARSE_TEXT, why: 'word-per-line covers' },
+  { variant: 'binarised', psm: PSM.AUTO, why: 'low contrast' },
+  { variant: 'grayscale', psm: PSM.SINGLE_BLOCK, why: 'last resort' },
+]
+
+/** A spine is read differently: sparse text, rotated type, very little of it. */
+export const SPINE_SCHEDULE: PassSpec[] = [
+  { variant: 'raw', psm: PSM.SPARSE_TEXT, why: 'spine' },
+  { variant: 'grayscale', psm: PSM.SPARSE_TEXT, why: 'spine, low contrast' },
+  { variant: 'binarised', psm: PSM.SINGLE_BLOCK, why: 'spine, last resort' },
+]
+
+function normaliseForDedupe(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '')
+    .trim()
+}
+
+/**
+ * Pools the lines from several passes, keeping one copy of each distinct line.
+ *
+ * Two passes reading the same words is the normal case, so duplicates are collapsed by
+ * normalised text and the highest-confidence copy is kept — its geometry is the one the
+ * scorer will trust.
+ */
+export function mergeLines(passes: OcrPass[]): OcrLine[] {
+  const best = new Map<string, OcrLine>()
+  for (const pass of passes) {
+    for (const line of pass.lines) {
+      const key = normaliseForDedupe(line.text)
+      if (key.length === 0) continue
+      const existing = best.get(key)
+      if (!existing || line.confidence > existing.confidence) best.set(key, line)
+    }
+  }
+  return [...best.values()].sort((a, b) => a.bbox.y0 - b.bbox.y0)
+}
+
+export interface ReadOptions {
+  /** Stop early once the evidence looks good enough. Default true. */
+  adaptive?: boolean
+  /** Hard ceiling on passes. Default: the whole schedule. */
+  maxPasses?: number
+  /** Passes to run before an early exit is allowed. Default: by image resolution. */
+  minPasses?: number
+  /** Called after each pass, for progress reporting. */
+  onPass?: (done: number, total: number) => void
+  signal?: AbortSignal
+}
+
+/**
+ * True when the evidence already looks like a cleanly-read cover, so the remaining passes
+ * would only cost time.
+ *
+ * The bar is deliberately high. A looser test — any two confident lines — stopped after
+ * the first pass on covers whose title only the *third* pass could read, losing *The Great
+ * Gatsby* and *Neuromancer* to a pair of confidently-read blurb lines. Two clean, wordy,
+ * high-confidence lines is what a legible cover actually looks like; anything less is
+ * worth spending another 250 ms on.
+ */
+export function evidenceIsStrong(lines: OcrLine[]): boolean {
+  const solid = lines.filter(
+    (l) => l.confidence >= 80 && letterCount(l.text) >= 4 && wordiness(l.text) >= 0.6,
+  )
+  if (solid.length < 2) return false
+  const wordLike = solid.reduce(
+    (sum, l) => sum + l.text.split(/\s+/).filter((w) => letterCount(w) >= 2).length,
+    0,
+  )
+  // One of them has to be long enough to plausibly *be* a title. Glare across a cover
+  // left two confident fragments — "The Pic" and "Oscar W" — which satisfied every other
+  // condition and stopped the schedule before the pass that handles glare ever ran.
+  const hasTitleLengthLine = solid.some((l) => letterCount(l.text) >= 8)
+  return wordLike >= 3 && hasTitleLengthLine
+}
+
+/**
+ * Reads one prepared image, pooling as many passes as it needs.
  *
  * The resized colour image goes first. That ordering is measured, not assumed: on the
  * benchmark set, pre-thresholding the image *lost* covers outright — "The Road" (white
  * type on black) returned zero lines binarised and 96% confidence untouched. Tesseract
  * does its own adaptive thresholding, and a global threshold applied first only throws
- * information away. The binarised pass is kept as a fallback, because it does help the
- * opposite case: a flat, low-contrast photo of a matte cover.
- *
- * Tall, narrow images are spines, and are read with the sparse-text mode instead.
+ * information away.
  */
 export async function readImage(
   engine: OcrEngine,
-  prepared: { raw: ImageData; binarised: ImageData; width: number; height: number },
-): Promise<OcrResult> {
+  prepared: {
+    raw: ImageData
+    grayscale: ImageData
+    binarised: ImageData
+    flattened: ImageData
+    width: number
+    height: number
+  },
+  options: ReadOptions = {},
+): Promise<OcrEvidence> {
+  const { adaptive = true, onPass, signal } = options
   const isSpine = prepared.height / Math.max(1, prepared.width) > 2.2
-  const mode = isSpine ? PSM.SPARSE_TEXT : PSM.AUTO
+  const schedule = (isSpine ? SPINE_SCHEDULE : PASS_SCHEDULE).slice(
+    0,
+    options.maxPasses ?? Infinity,
+  )
 
-  const first = await engine.recognise(prepared.raw, mode)
-  if (first.meanConfidence >= RETRY_CONFIDENCE && first.lines.length > 0) return first
+  // A small image is a hard image: at 300x500 the title is barely 80px tall and one pass
+  // is rarely enough, while a phone photo of a physical book is usually read correctly on
+  // the first attempt. Resolution is the cheapest available predictor of difficulty, so it
+  // sets how many passes must run before an early exit is even considered.
+  const megapixels = (prepared.width * prepared.height) / 1e6
+  const minPasses = options.minPasses ?? (megapixels < 1.2 ? 3 : 1)
 
-  const second = await engine.recognise(prepared.binarised, mode)
-  const score = (r: OcrResult) => (r.lines.length === 0 ? -1 : r.meanConfidence)
-  return score(second) > score(first) ? second : first
+  const passes: OcrPass[] = []
+  for (const [index, spec] of schedule.entries()) {
+    if (signal?.aborted) break
+    const started = Date.now()
+    const result = await engine.recognise(prepared[spec.variant], spec.psm)
+    passes.push({
+      variant: spec.variant,
+      psm: String(spec.psm),
+      lines: result.lines,
+      meanConfidence: result.meanConfidence,
+      ms: Date.now() - started,
+    })
+    onPass?.(index + 1, schedule.length)
+
+    if (adaptive && passes.length >= minPasses && evidenceIsStrong(mergeLines(passes))) break
+  }
+
+  const lines = mergeLines(passes)
+  const allWords = lines.flatMap((l) => l.words)
+  return {
+    passes,
+    lines,
+    text: lines.map((l) => l.text).join('\n'),
+    width: prepared.width,
+    height: prepared.height,
+    meanConfidence:
+      allWords.length === 0
+        ? 0
+        : allWords.reduce((sum, w) => sum + w.confidence, 0) / allWords.length,
+  }
 }

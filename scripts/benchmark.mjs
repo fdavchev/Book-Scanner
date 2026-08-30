@@ -20,7 +20,10 @@ const args = process.argv.slice(2)
 const degraded = args.includes('--degraded')
 // Which fixture set: the rendered covers (default, phone-photo resolution) or the real
 // low-resolution Open Library artwork.
-const set = args.includes('--real') ? 'benchmark' : 'covers'
+const set = args.includes('--real') ? 'benchmark' : args.includes('--hard') ? 'hard' : 'covers'
+// With the lookup on, the catalogue is used to corroborate what OCR read. Off, the result
+// is whatever the device could work out on its own.
+const lookup = args.includes('--lookup')
 const fixtures = join(root, 'tests', 'fixtures', set)
 const limitArg = args.find((a) => a.startsWith('--limit='))
 const limit = limitArg ? Number(limitArg.split('=')[1]) : Infinity
@@ -134,7 +137,7 @@ async function main() {
     for (const book of truth) {
       if (!available.has(book.file)) continue
       const base64 = (await readFile(join(fixtures, book.file))).toString('base64')
-      const options = degraded ? { degrade: {} } : {}
+      const options = { lookup, ...(degraded ? { degrade: {} } : {}) }
       const got = await page.evaluate(
         ([b64, opts]) => window.bench.run(b64, opts),
         [base64, options],
@@ -187,12 +190,17 @@ async function main() {
   const lines = [
     '# OCR accuracy benchmark',
     '',
-    `Generated ${new Date().toISOString()} by \`npm run benchmark${degraded ? ' -- --degraded' : ''}\`.`,
+    `Generated ${new Date().toISOString()} by \`npm run benchmark --${set === 'benchmark' ? ' --real' : set === 'hard' ? ' --hard' : ''}${lookup ? ' --lookup' : ''}${degraded ? ' --degraded' : ''}\`.`,
     '',
     set === 'benchmark'
       ? `Run against **${summary.covers} real book covers** downloaded from Open Library (\`npm run fetch-benchmark\`) — 300×500 artwork thumbnails.`
-      : `Run against **${summary.covers} rendered covers** at 1200×1800 (\`node scripts/make-fixtures.mjs\`), the resolution a phone photo of a physical book actually has.`,
-    'Run through the real browser pipeline in headless Chromium:',
+      : set === 'hard'
+        ? `Run against **${summary.covers} deliberately difficult covers** (\`node scripts/make-hard-fixtures.mjs\`): blur, angles, glare, dim light, title-only, author-prominent, similar titles and Cyrillic.`
+        : `Run against **${summary.covers} rendered covers** at 1200×1800 (\`node scripts/make-fixtures.mjs\`), the resolution a phone photo of a physical book actually has.`,
+    'Run through the real browser pipeline in headless Chromium.',
+    lookup
+      ? '**Open Library lookup on** — OCR evidence corroborated against the catalogue.'
+      : '**Offline only** — no network; these are the on-device numbers.',
     'preprocess → tesseract.js (eng) → candidate detection. No Open Library lookup — these',
     'are the OCR-only numbers.',
     '',
@@ -220,7 +228,7 @@ async function main() {
     '',
   ]
 
-  const suffix = `${set}${degraded ? '-degraded' : ''}`
+  const suffix = `${set}${lookup ? '-online' : '-offline'}${degraded ? '-degraded' : ''}`
   const outFile = join(root, 'docs', `accuracy-${suffix}.md`)
   await writeFile(outFile, lines.join('\n'))
   await writeFile(

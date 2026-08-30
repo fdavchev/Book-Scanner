@@ -82,3 +82,27 @@ export function tidyTitle(input: string): string {
     )
     .join(' ')
 }
+
+/** Vowels in both scripts the app reads. */
+const VOWELS = /[aeiouyаеиоу]/i
+
+/**
+ * How much a string reads like real words, 0–1: the share of its tokens that contain a
+ * vowel and are long enough to be a word.
+ *
+ * OCR noise from cover artwork is overwhelmingly short consonant clusters — "VU", "BE",
+ * "Nt", "SS", "ZR". They survived every other filter, and because decorative elements are
+ * large they scored highly on glyph height and won the title slot outright. This is the
+ * measure that tells them apart from "Dune".
+ */
+export function wordiness(input: string): number {
+  const parts = normalise(input).split(' ').filter((t) => t.length > 0)
+  if (parts.length === 0) return 0
+  const wordLike = parts.filter((t) => t.length >= 2 && VOWELS.test(t)).length
+  return wordLike / parts.length
+}
+
+/** Total letters, ignoring spaces and punctuation. */
+export function letterCount(input: string): number {
+  return (input.match(/\p{L}/gu) ?? []).length
+}

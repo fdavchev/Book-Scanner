@@ -91,5 +91,5 @@ test('the app works when served from a subpath, as GitHub Pages serves it', asyn
     .getByTestId('file-input')
     .setInputFiles(join(process.cwd(), 'tests', 'fixtures', 'covers', 'river-of-stone.png'))
   await expect(page.getByTestId('review-card')).toBeVisible({ timeout: 120_000 })
-  await expect(page.getByLabel('Title')).toHaveValue('The River of Stone')
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('The River of Stone')
 })

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { CoverImage } from './CoverImage'
 import { searchBooks } from '../storage/search'
-import { exportBooks, importBooks, type Book } from '../storage/db'
+import type { Book } from '../storage/db'
+import { describeBackup, exportToFile, importFromFile } from '../storage/backup'
 import type { BooksApi } from './useBooks'
 
 export function LibraryScreen({
@@ -17,26 +18,39 @@ export function LibraryScreen({
   const [notice, setNotice] = useState<string>()
   const results = searchBooks(books.books, query)
 
+  const [busy, setBusy] = useState(false)
+
   async function handleExport() {
-    const file = await exportBooks()
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `book-scanner-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-    setNotice(`Exported ${file.books.length} books.`)
+    setBusy(true)
+    setNotice(undefined)
+    try {
+      setNotice(describeBackup(await exportToFile()))
+    } catch (err) {
+      // Closing the share sheet is a choice, not a failure.
+      if (err instanceof Error && err.name === 'AbortError') setNotice(undefined)
+      else setNotice(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleImport(file: File | undefined) {
     if (!file) return
+    setBusy(true)
+    setNotice(undefined)
     try {
-      const result = await importBooks(JSON.parse(await file.text()))
+      const result = await importFromFile(file)
       await books.reload()
-      setNotice(`Added ${result.added} books, skipped ${result.skipped} already here.`)
+      setNotice(
+        result.added === 0 && result.skipped > 0
+          ? `Nothing new — all ${result.skipped} books in that file are already here.`
+          : `Added ${result.added} book${result.added === 1 ? '' : 's'}` +
+              (result.skipped > 0 ? `, skipped ${result.skipped} already here.` : '.'),
+      )
     } catch (err) {
       setNotice(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -104,21 +118,23 @@ export function LibraryScreen({
         </ul>
       )}
 
-      <h2>Backup</h2>
+      <h2>Backup &amp; moving to a new phone</h2>
       <p className="small dim">
-        Your books live only on this device. Export a copy now and then — it is the way to
-        move them to a new phone, and the way back if the browser ever clears its storage.
+        Your books live only on this device. <strong>Export</strong> writes them, covers
+        included, to a single file. On the new phone, install the app and{' '}
+        <strong>Import</strong> that file — everything comes back.
       </p>
       <div className="row">
-        <button type="button" onClick={handleExport}>
-          Export to a file
+        <button type="button" onClick={handleExport} disabled={busy} data-testid="export-books">
+          {busy ? 'Working…' : 'Export to a file'}
         </button>
         <label className="pill" style={{ textTransform: 'none', letterSpacing: 0 }}>
           Import a backup
           <input
             type="file"
-            accept="application/json"
+            accept="application/json,.json"
             className="visually-hidden"
+            data-testid="import-books"
             onChange={(event) => void handleImport(event.target.files?.[0])}
           />
         </label>

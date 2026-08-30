@@ -5,14 +5,6 @@ import type { SettingsApi } from './useSettings'
 import type { ReviewItem } from '../pipeline/group'
 import type { LanguageCode } from '../pipeline/ocr'
 
-const STATUS_TEXT = {
-  queued: 'queued',
-  reading: 'reading…',
-  matching: 'looking up…',
-  done: 'done',
-  failed: 'failed',
-} as const
-
 export function ScanScreen({
   settings,
   onScanned,
@@ -136,14 +128,24 @@ export function ScanScreen({
       {scanner.jobs.length > 0 && (
         <>
           <h2>
-            Scanning {scanner.jobs.filter((j) => j.status === 'done').length}/
+            Scanning {scanner.jobs.filter((j) => j.stage === 'done').length}/
             {scanner.jobs.length}
           </h2>
           <div className="card" data-testid="scan-progress">
             {scanner.jobs.map((job) => (
-              <div key={job.id} className="scan-item">
-                <span className="meta">{job.title ?? job.name}</span>
-                <span className="dim">{STATUS_TEXT[job.status]}</span>
+              <div key={job.id} className="scan-item stack" style={{ gap: 4 }}>
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <span className="meta">{job.title ?? job.name}</span>
+                  <span className="dim">{job.error ?? job.detail ?? 'waiting'}</span>
+                </div>
+                {job.stage !== 'done' && job.stage !== 'failed' && (
+                  <div className="progress">
+                    <div style={{ width: `${Math.round((job.progress ?? 0.08) * 100)}%` }} />
+                  </div>
+                )}
+                {job.stage === 'done' && (job.warnings?.length ?? 0) > 0 && (
+                  <span className="small dim">{job.warnings?.[0]}</span>
+                )}
               </div>
             ))}
           </div>

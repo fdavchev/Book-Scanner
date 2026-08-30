@@ -62,10 +62,21 @@ interface BookScannerDB extends DBSchema {
     key: string
     value: unknown
   }
+  lookups: {
+    key: string
+    value: CachedLookup
+  }
+}
+
+/** One remembered Open Library search. */
+export interface CachedLookup {
+  query: string
+  docs: unknown[]
+  cachedAt: number
 }
 
 const DB_NAME = 'book-scanner'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<BookScannerDB>> | null = null
 
@@ -78,6 +89,9 @@ export function getDb(): Promise<IDBPDatabase<BookScannerDB>> {
       }
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings')
+      }
+      if (!db.objectStoreNames.contains('lookups')) {
+        db.createObjectStore('lookups', { keyPath: 'query' })
       }
     },
   })
@@ -299,5 +313,47 @@ export async function requestPersistence(): Promise<boolean> {
     return await navigator.storage.persist()
   } catch {
     return false
+  }
+}
+
+// ------------------------------------------------------------------ lookup cache
+
+/** How long a remembered search stays usable. The catalogue barely moves; a month is safe. */
+export const LOOKUP_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * Remembers Open Library searches on the device.
+ *
+ * Scanning a shelf asks the same few questions over and over — the same author, the same
+ * series — and Open Library throttles a client that repeats itself, which showed up in
+ * testing as `Failed to fetch` and a 20-second stall. Caching removes both the wait and
+ * the load, and it means a book scanned once can be identified again with no network.
+ */
+export function createLookupCache<T = unknown>(ttlMs = LOOKUP_TTL_MS) {
+  const memory = new Map<string, T[]>()
+
+  return {
+    async get(query: string): Promise<T[] | undefined> {
+      const key = query.toLowerCase().trim()
+      const hit = memory.get(key)
+      if (hit) return hit
+      try {
+        const stored = await (await getDb()).get('lookups', key)
+        if (!stored || Date.now() - stored.cachedAt > ttlMs) return undefined
+        memory.set(key, stored.docs as T[])
+        return stored.docs as T[]
+      } catch {
+        return undefined
+      }
+    },
+    async set(query: string, docs: T[]): Promise<void> {
+      const key = query.toLowerCase().trim()
+      memory.set(key, docs)
+      try {
+        await (await getDb()).put('lookups', { query: key, docs, cachedAt: Date.now() })
+      } catch {
+        // A full or unavailable store must never fail a scan.
+      }
+    },
   }
 }

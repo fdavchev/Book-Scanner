@@ -3,9 +3,18 @@ import { join } from 'node:path'
 
 const fixtures = join(process.cwd(), 'tests', 'fixtures', 'covers')
 
-/** Scans one rendered cover through the real pipeline and waits for the review card. */
+/**
+ * Scans one rendered cover through the real pipeline and waits for the review card.
+ *
+ * The catalogue lookup is switched off first. These fixtures are invented books, so what
+ * Open Library returns for them is neither stable nor meaningful — and a test of the scan
+ * flow should not depend on a network round trip anyway. The lookup has its own tests.
+ */
 async function scanCover(page: Page, file: string) {
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
+  const pill = page.getByTestId('lookup-pill')
+  if ((await pill.getAttribute('data-mode')) !== 'forced-off') await pill.click()
+  await expect(pill).toHaveAttribute('data-mode', 'forced-off')
   await page.getByTestId('file-input').setInputFiles(join(fixtures, file))
   await expect(page.getByTestId('review-card').first()).toBeVisible({ timeout: 120_000 })
 }
@@ -27,8 +36,8 @@ test('scans a cover, detects title and author, and saves it to the collection', 
 }) => {
   await scanCover(page, 'winter-letters.png')
 
-  await expect(page.getByLabel('Title')).toHaveValue('Winter Letters')
-  await expect(page.getByLabel('Author')).toHaveValue('Jonas Lindqvist')
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Winter Letters')
+  await expect(page.getByLabel('Author', { exact: true })).toHaveValue('Jonas Lindqvist')
 
   await page.getByTestId('save-all').click()
 
@@ -40,8 +49,8 @@ test('scans a cover, detects title and author, and saves it to the collection', 
 test('a wrong detection can be corrected before saving', async ({ page }) => {
   await scanCover(page, 'iron-harvest.png')
 
-  await page.getByLabel('Title').fill('Iron Harvest (corrected)')
-  await page.getByLabel('Author').fill('Someone Else')
+  await page.getByLabel('Title', { exact: true }).fill('Iron Harvest (corrected)')
+  await page.getByLabel('Author', { exact: true }).fill('Someone Else')
   await page.getByTestId('save-all').click()
 
   await expect(page.getByTestId('book-row')).toContainText('Iron Harvest (corrected)')
@@ -78,7 +87,7 @@ test('search narrows the library, and a book can be edited then deleted', async 
   await expect(page.getByTestId('book-row')).toContainText('Paper Tigers')
 
   await page.getByTestId('book-row').click()
-  await page.getByLabel('Title').fill('Paper Tigers, Second Edition')
+  await page.getByLabel('Title', { exact: true }).fill('Paper Tigers, Second Edition')
   await page.getByTestId('save-edit').click()
   await expect(page.getByTestId('book-row')).toContainText('Paper Tigers, Second Edition')
 
@@ -90,6 +99,8 @@ test('search narrows the library, and a book can be edited then deleted', async 
 
 test('two photos of the same book collapse into one review card', async ({ page }) => {
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
+  const pill = page.getByTestId('lookup-pill')
+  if ((await pill.getAttribute('data-mode')) !== 'forced-off') await pill.click()
   await page
     .getByTestId('file-input')
     .setInputFiles([join(fixtures, 'quiet-machine.png'), join(fixtures, 'quiet-machine.png')])

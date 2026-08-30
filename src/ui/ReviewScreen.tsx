@@ -6,8 +6,17 @@ import { addBooks } from '../storage/db'
 
 function confidenceClass(confidence: number): string {
   if (confidence >= 70) return 'chip high'
-  if (confidence >= 40) return 'chip medium'
+  if (confidence >= 55) return 'chip medium'
   return 'chip low'
+}
+
+/** Below this the app says plainly that it is guessing, rather than showing a number. */
+export const UNSURE_BELOW = 55
+
+function confidenceLabel(confidence: number): string {
+  if (confidence >= 70) return `${confidence}% confident`
+  if (confidence >= UNSURE_BELOW) return `${confidence}% — worth checking`
+  return 'Not sure — please check'
 }
 
 export function ReviewScreen({
@@ -131,7 +140,7 @@ export function ReviewScreen({
 
             <div className="row">
               <span className={confidenceClass(item.confidence)}>
-                {item.confidence}% confident
+                {confidenceLabel(item.confidence)}
               </span>
               <span className="chip">
                 {item.source === 'openlibrary' ? 'Matched via Open Library' : 'OCR'}
@@ -143,6 +152,13 @@ export function ReviewScreen({
             <p className="small dim" style={{ margin: 0 }}>
               {item.reason}
             </p>
+
+            {item.confidence < UNSURE_BELOW && (
+              <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
+                The cover was hard to read. Check the title and author before saving — or
+                use <strong>Crop &amp; rescan</strong> to try again on just the cover.
+              </p>
+            )}
 
             {item.titleAlternates.length > 0 && (
               <div className="field">

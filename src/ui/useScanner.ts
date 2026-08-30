@@ -1,18 +1,26 @@
 import { useCallback, useRef, useState } from 'react'
-import { prepare } from '../pipeline/preprocess'
+import { assessQuality, prepare } from '../pipeline/preprocess'
 import { TesseractPool, readImage, type LanguageCode } from '../pipeline/ocr'
-import { detect, searchQuery } from '../pipeline/candidates'
-import { enrich, shouldLookUp } from '../pipeline/enrich'
+import { detect, hypotheses } from '../pipeline/candidates'
+import { shouldLookUp } from '../pipeline/enrich'
+import { identify } from '../pipeline/identify'
+import type { OpenLibraryDoc } from '../pipeline/enrich'
 import { groupDetections, type ReviewItem, type ScannedImage } from '../pipeline/group'
-import type { LookupMode } from '../storage/db'
+import { createLookupCache, type LookupMode } from '../storage/db'
 
-export type JobStatus = 'queued' | 'reading' | 'matching' | 'done' | 'failed'
+export type JobStage = 'queued' | 'preparing' | 'reading' | 'matching' | 'done' | 'failed'
 
 export interface ScanJob {
   id: string
   name: string
-  status: JobStatus
+  stage: JobStage
+  /** 0–1 within the current stage, when it is known. */
+  progress?: number
+  detail?: string
   title?: string
+  confidence?: number
+  /** Advice about the photo itself, when it is the problem. */
+  warnings?: string[]
   error?: string
 }
 
@@ -25,11 +33,19 @@ export interface ScanOptions {
 export interface ScannerApi {
   jobs: ScanJob[]
   running: boolean
-  /** Set while the OCR engine is still loading, 0–1. */
   loadingEngine?: number
   error?: string
   scan: (files: File[], options: ScanOptions) => Promise<ReviewItem[]>
   reset: () => void
+}
+
+const STAGE_DETAIL: Record<JobStage, string> = {
+  queued: 'waiting',
+  preparing: 'checking the photo',
+  reading: 'reading the cover',
+  matching: 'checking the catalogue',
+  done: 'done',
+  failed: 'failed',
 }
 
 /**
@@ -46,6 +62,9 @@ export function useScanner(): ScannerApi {
   const [error, setError] = useState<string>()
   const poolRef = useRef<TesseractPool>(null)
   const poolLanguagesRef = useRef<string>('')
+  // One cache for the life of the app: scanning a shelf asks the catalogue the same
+  // questions repeatedly, and a remembered answer needs no network at all.
+  const cacheRef = useRef(createLookupCache<OpenLibraryDoc>())
 
   const reset = useCallback(() => {
     setJobs([])
@@ -63,7 +82,7 @@ export function useScanner(): ScannerApi {
       const initial: ScanJob[] = files.map((file, i) => ({
         id: `${Date.now()}-${i}`,
         name: file.name || `Photo ${i + 1}`,
-        status: 'queued',
+        stage: 'queued',
       }))
       setJobs(initial)
 
@@ -83,15 +102,39 @@ export function useScanner(): ScannerApi {
         const scanned: ScannedImage[] = []
         for (const [index, file] of files.entries()) {
           const job = initial[index]
-          update(job.id, { status: 'reading' })
           try {
+            update(job.id, { stage: 'preparing', detail: STAGE_DETAIL.preparing })
             const prepared = await prepare(file)
-            const ocr = await readImage(pool, prepared)
+            const quality = assessQuality(prepared.grayscale)
+
+            update(job.id, {
+              stage: 'reading',
+              detail: STAGE_DETAIL.reading,
+              warnings: quality.warnings,
+            })
+            const ocr = await readImage(pool, prepared, {
+              onPass: (done, total) =>
+                update(job.id, {
+                  progress: done / total,
+                  detail: `reading the cover (${done}/${total})`,
+                }),
+            })
+
+            const ranked = hypotheses(ocr)
             let detection = detect(ocr)
 
-            if (shouldLookUp(options.lookupMode, options.online) && detection.title) {
-              update(job.id, { status: 'matching', title: detection.title })
-              const outcome = await enrich(detection, searchQuery(ocr, detection))
+            if (shouldLookUp(options.lookupMode, options.online)) {
+              update(job.id, {
+                stage: 'matching',
+                progress: undefined,
+                detail: STAGE_DETAIL.matching,
+                title: detection.title,
+              })
+              const outcome = await identify(ocr, ranked, detection, {
+                cache: cacheRef.current,
+                onQuery: (_query, i, total) =>
+                  update(job.id, { detail: `checking the catalogue (${i + 1}/${total})` }),
+              })
               detection = outcome.detection
             }
 
@@ -102,10 +145,20 @@ export function useScanner(): ScannerApi {
               cover: prepared.thumbnail,
               ocrText: ocr.text,
             })
-            update(job.id, { status: 'done', title: detection.title || '(nothing readable)' })
+            update(job.id, {
+              stage: 'done',
+              progress: 1,
+              detail: STAGE_DETAIL.done,
+              title: detection.title || '(nothing readable)',
+              confidence: detection.confidence,
+              // Only worth mentioning when the result is poor; a blurry photo that still
+              // came out right is not something to nag about.
+              warnings: detection.confidence < 55 ? quality.warnings : [],
+            })
           } catch (err) {
             update(job.id, {
-              status: 'failed',
+              stage: 'failed',
+              detail: STAGE_DETAIL.failed,
               error: err instanceof Error ? err.message : String(err),
             })
           }

@@ -16,7 +16,10 @@
     "fetch-benchmark": "node scripts/fetch-benchmark.mjs",
     "vendor-ocr": "node scripts/vendor-ocr.mjs",
     "postinstall": "node scripts/vendor-ocr.mjs",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "make-fixtures": "node scripts/make-fixtures.mjs",
+    "make-hard-fixtures": "node scripts/make-hard-fixtures.mjs",
+    "diagnose": "node scripts/diagnose.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

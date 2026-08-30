@@ -7,8 +7,16 @@
  * The dominant signal is glyph height: on almost every cover the title is the largest
  * text on the page. Position, word shape and confidence break the ties.
  */
-import type { BBox, Detection, OcrLine, OcrResult } from './types'
-import { isMostlyUpperCase, letterRatio, normalise, tidyTitle, tokens } from './text'
+import type { BBox, Detection, Hypothesis, OcrEvidence, OcrLine, OcrResult } from './types'
+import {
+  isMostlyUpperCase,
+  letterCount,
+  letterRatio,
+  normalise,
+  tidyTitle,
+  tokens,
+  wordiness,
+} from './text'
 
 /** Lines that are printed on covers but are never the title or the author. */
 const NOISE_PATTERNS: RegExp[] = [
@@ -44,6 +52,42 @@ const NOISE_PATTERNS: RegExp[] = [
   /\b(paperback|hardcover|hardback)\b/i,
   /\bbook (one|two|three|1|2|3)\b/i,
   /\bprelude to\b/i,
+  // A line opening with a dash is a blurb attribution — "— Village Voice". Treating one
+  // as an author made the scanner identify a cover as "The Village Voice Film Guide".
+  /^\s*[—–-]{1,2}\s*\p{L}/u,
+]
+
+/** Newspapers and magazines that review books. A cover quotes them; none of them wrote it. */
+const PUBLICATIONS = [
+  'village voice',
+  'the guardian',
+  'guardian',
+  'observer',
+  'the times',
+  'telegraph',
+  'washington post',
+  'wall street journal',
+  'entertainment weekly',
+  'publishers weekly',
+  'kirkus',
+  'booklist',
+  'esquire',
+  'vogue',
+  'the atlantic',
+  'the new yorker',
+  'new yorker',
+  'boston globe',
+  'chicago tribune',
+  'los angeles times',
+  'daily mail',
+  'independent',
+  'financial times',
+  'time magazine',
+  'newsweek',
+  'salon',
+  'slate',
+  'npr',
+  'bbc',
 ]
 
 /**
@@ -139,6 +183,7 @@ export function isNoise(text: string): boolean {
   const norm = normalise(cleaned)
   if (norm.length < 2) return true
   if (IMPRINTS.has(norm)) return true
+  if (PUBLICATIONS.some((name) => norm === name || norm.endsWith(` ${name}`))) return true
   // A line that is entirely a quotation is a blurb, not a title.
   if (/^["'].*["']$/.test(cleaned) && cleaned.length > 12) return true
   if (letterRatio(cleaned) < 0.5) return true
@@ -172,7 +217,15 @@ function mergeBBox(a: BBox, b: BBox): BBox {
 export function groupLines(lines: OcrLine[], imageHeight: number): Candidate[] {
   const usable = lines
     .map((l) => ({ ...l, text: cleanText(l.text) }))
-    .filter((l) => l.text.length > 0 && l.confidence >= 30 && !isNoise(l.text))
+    .filter(
+      (l) =>
+        l.text.length > 0 &&
+        l.confidence >= 30 &&
+        // Three letters is the floor for a line to mean anything. Below it the line is
+        // cover ornament that OCR tried to read as text.
+        letterCount(l.text) >= 3 &&
+        !isNoise(l.text),
+    )
     .sort((a, b) => a.bbox.y0 - b.bbox.y0)
 
   const groups: Candidate[] = []
@@ -253,6 +306,9 @@ function scoreTitles(candidates: Candidate[]): Scored[] {
       score += candidate.centreY <= 0.6 ? 0.15 * (1 - candidate.centreY / 0.6) + 0.05 : 0
       score += words >= 1 && words <= 10 ? 0.12 : 0
       score += letterRatio(candidate.text) * 0.1
+      // Decisive against OCR noise: large decorative marks read as "VU" or "ZR" score
+      // highly on height and would otherwise take the title slot.
+      score += (wordiness(candidate.text) - 0.5) * 0.4
       score += (candidate.confidence / 100) * 0.13
       // A "by …" line is an author line, never a title.
       if (candidate.hasByPrefix) score -= 0.5
@@ -276,6 +332,7 @@ function scoreAuthors(candidates: Candidate[], title: Candidate | undefined): Sc
       if (title && candidate.height < title.height) score += 0.1
       if (title && candidate.height > title.height) score -= 0.15
       score += (candidate.confidence / 100) * 0.13
+      score += (wordiness(candidate.text) - 0.5) * 0.3
       const words = candidate.text.replace(AUTHOR_PREFIX, '').split(/\s+/).length
       if (words > 5) score -= 0.25
       return { candidate, score }
@@ -295,42 +352,206 @@ function describe(title: Candidate | undefined, candidates: Candidate[]): string
   return parts.join(', ')
 }
 
-/**
- * Overall 0–100 confidence, blending OCR confidence with how clearly the winner beat
- * the runner-up — a close race deserves a low score even when OCR was sure of the text.
- */
-function overallConfidence(
-  title: Scored | undefined,
-  author: Scored | undefined,
-  runnerUpScore: number,
-): number {
-  if (!title) return 0
-  const margin = Math.max(0, Math.min(1, (title.score - runnerUpScore) / 0.25))
-  const ocr = title.candidate.confidence / 100
-  const authorBonus = author && author.score > 0.35 ? 0.15 : 0
-  return Math.round(Math.min(100, (ocr * 0.5 + margin * 0.35 + authorBonus) * 100))
+// ------------------------------------------------------------------ hypotheses
+
+/** How many candidate lines are considered for each role. */
+const MAX_ROLE_CANDIDATES = 5
+export const MAX_HYPOTHESES = 6
+
+function normaliseScores(scored: Scored[]): Map<Candidate, number> {
+  const best = Math.max(...scored.map((s) => s.score), 0.0001)
+  const worst = Math.min(...scored.map((s) => s.score), 0)
+  const span = Math.max(0.0001, best - worst)
+  return new Map(scored.map((s) => [s.candidate, (s.score - worst) / span]))
 }
 
+/**
+ * Enumerates whole interpretations of the cover rather than committing to one.
+ *
+ * Scoring each role independently and taking the winner of each is what produced the
+ * pipeline's worst failure mode: on *The Handmaid's Tale* the author's name is set larger
+ * than the title, so "Margaret Atwood" won the title role and the real title was pushed
+ * into the author slot. Pairing the roles and scoring the pair as a unit lets the correct
+ * assignment — which scores slightly worse on raw glyph height but far better on word
+ * shape — stay in contention, and lets the catalogue settle it later.
+ */
+/**
+ * How trustworthy one pass's output looks, 0–1: the share of its text that reads like
+ * real words, weighted by how confident tesseract was.
+ */
+export function passQuality(lines: OcrLine[]): number {
+  if (lines.length === 0) return 0
+  let weight = 0
+  let good = 0
+  for (const line of lines) {
+    const w = Math.max(1, letterCount(line.text))
+    weight += w
+    good += w * wordiness(line.text) * (line.confidence / 100)
+  }
+  return weight === 0 ? 0 : Math.min(1, good / weight)
+}
+
+export function hypothesesForLines(lines: OcrLine[], imageHeight: number): Hypothesis[] {
+  const candidates = groupLines(lines, imageHeight || 1)
+  if (candidates.length === 0) return []
+
+  const titleScores = scoreTitles(candidates)
+  const authorScores = scoreAuthors(candidates, undefined)
+  const titleRank = normaliseScores(titleScores)
+  const authorRank = normaliseScores(authorScores)
+
+  const topTitles = titleScores.slice(0, MAX_ROLE_CANDIDATES).map((s) => s.candidate)
+  const topAuthors = authorScores.slice(0, MAX_ROLE_CANDIDATES).map((s) => s.candidate)
+
+  const out: Hypothesis[] = []
+  for (const title of topTitles) {
+    // Title with no author at all: the honest reading of a cover that only shows one.
+    out.push({
+      title: tidyTitle(title.text),
+      author: '',
+      score: (titleRank.get(title) ?? 0) * 0.6,
+      reason: describe(title, candidates),
+    })
+
+    for (const author of topAuthors) {
+      if (author === title) continue
+      let score = (titleRank.get(title) ?? 0) * 0.55 + (authorRank.get(author) ?? 0) * 0.45
+
+      // Consistency bonuses: a real cover sets the title larger than the author, the
+      // author reads like a name and the title does not.
+      if (title.height > author.height) score += 0.1
+      if (author.hasByPrefix) score += 0.12
+      score += looksLikeName(author.text) * 0.12
+      score -= looksLikeName(title.text) * 0.1
+      if (title.hasByPrefix) score -= 0.3
+
+      out.push({
+        title: tidyTitle(title.text),
+        author: tidyTitle(author.text.replace(AUTHOR_PREFIX, '')),
+        score: Math.max(0, Math.min(1, score)),
+        reason: describe(title, candidates),
+        authorConfidence: author.confidence,
+      })
+    }
+  }
+
+  // Author-only: some covers show a legible name and an illegible title, and the name
+  // alone is enough for the catalogue to work with.
+  for (const author of topAuthors.slice(0, 2)) {
+    out.push({
+      title: '',
+      author: tidyTitle(author.text.replace(AUTHOR_PREFIX, '')),
+      score: (authorRank.get(author) ?? 0) * 0.35,
+      reason: 'only a name was legible',
+      authorConfidence: author.confidence,
+    })
+  }
+
+  return out.sort((a, b) => b.score - a.score)
+}
+
+/**
+ * Interpretations pooled across every OCR pass.
+ *
+ * Each pass is scored on its own geometry and never merged with another's. That
+ * separation is not fussiness: pooling the *lines* first and scoring the pool was tried
+ * and measurably worse, because bounding boxes from a sparse-text pass and a block pass
+ * describe the same cover in incompatible ways — "THE ROAD" ended up scored as the author
+ * of a book titled "VU". Geometry is only meaningful inside the pass that produced it, so
+ * the passes vote on whole interpretations instead.
+ *
+ * A reading that several passes agree on is worth more than one that only appears once.
+ */
+export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
+  const evidence = result as OcrEvidence
+  const passes =
+    evidence.passes?.length > 0
+      ? evidence.passes.map((p) => ({ lines: p.lines, quality: passQuality(p.lines) }))
+      : [{ lines: result.lines, quality: 1 }]
+
+  const pooled = new Map<string, Hypothesis & { votes: number }>()
+  for (const pass of passes) {
+    for (const h of hypothesesForLines(pass.lines, result.height)) {
+      const key = `${normalise(h.title)}|${normalise(h.author)}`
+      if (!h.title && !h.author) continue
+      // A pass that produced mostly rubbish should not get an equal vote. Without this,
+      // adding passes made the offline reading *worse*: the sparse-text pass on a heavily
+      // illustrated cover emits dozens of fragments, and one of them always outscored the
+      // real title found by a cleaner pass.
+      const score = h.score * (0.55 + 0.45 * pass.quality)
+      const existing = pooled.get(key)
+      if (existing) {
+        existing.votes++
+        existing.score = Math.max(existing.score, score)
+      } else {
+        pooled.set(key, { ...h, score, votes: 1 })
+      }
+    }
+  }
+
+  return [...pooled.values()]
+    .map((h) => ({
+      title: h.title,
+      author: h.author,
+      authorConfidence: h.authorConfidence,
+      // Agreement across independent passes is genuine corroboration, capped so that a
+      // weak reading repeated six times cannot outrank a strong one.
+      score: Math.min(1, h.score * (1 + Math.min(0.3, (h.votes - 1) * 0.1))),
+      reason: h.reason,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_HYPOTHESES)
+}
+
+/**
+ * The offline answer: the best pooled interpretation, with a confidence that reflects how
+ * much better it is than the runner-up.
+ *
+ * The confidence deliberately no longer keys off OCR's own certainty alone. Tesseract was
+ * 98% sure of the words "Margaret Atwood", and the old score passed that straight through
+ * even though the pipeline had put them in the wrong field — 8 of 15 benchmark covers came
+ * back confidently wrong. A close race between interpretations now reads as a low score,
+ * which is what lets the UI tell the user it is unsure instead of inventing certainty.
+ */
 export function detect(result: OcrResult): Detection {
-  const candidates = groupLines(result.lines, result.height || 1)
-  const titles = scoreTitles(candidates)
-  const title = titles[0]?.candidate
-  const authors = scoreAuthors(candidates, title)
-  const author = authors[0] && authors[0].score > 0.3 ? authors[0].candidate : undefined
+  const ranked = hypotheses(result)
+  const best = ranked[0]
+  if (!best) {
+    return {
+      title: '',
+      author: '',
+      confidence: 0,
+      reason: 'No text large enough to be a title was found',
+      titleAlternates: [],
+      authorAlternates: [],
+      source: 'ocr',
+    }
+  }
+
+  const margin = Math.max(0, Math.min(1, (best.score - (ranked[1]?.score ?? 0)) / 0.25))
+  const ocr = Math.max(0, Math.min(1, result.meanConfidence / 100))
+
+  // How much the winning line looks like an actual title. Glare across a cover left the
+  // fragment "The Pic", which OCR was perfectly confident about — and so, wrongly, was the
+  // old score. A six-letter fragment is not a title, and the number should say so.
+  const titleQuality =
+    Math.min(1, Math.max(0.3, letterCount(best.title) / 12)) * Math.max(0.4, wordiness(best.title))
+  const confidence = Math.round(
+    Math.min(96, (best.score * 0.5 + margin * 0.25 + ocr * 0.25) * 100) *
+      (0.5 + 0.5 * titleQuality),
+  )
 
   return {
-    title: title ? tidyTitle(title.text) : '',
-    author: author ? tidyTitle(author.text.replace(AUTHOR_PREFIX, '')) : '',
-    confidence: overallConfidence(titles[0], authors[0], titles[1]?.score ?? 0),
-    reason: describe(title, candidates),
-    titleAlternates: titles
-      .slice(1, 5)
-      .map((s) => tidyTitle(s.candidate.text))
-      .filter((t) => t.length > 0),
-    authorAlternates: authors
-      .slice(author ? 1 : 0, 5)
-      .map((s) => tidyTitle(s.candidate.text.replace(AUTHOR_PREFIX, '')))
-      .filter((t) => t.length > 0),
+    title: best.title,
+    author: best.author,
+    confidence,
+    reason: best.reason,
+    titleAlternates: [...new Set(ranked.map((h) => h.title).filter(Boolean))]
+      .filter((t) => t !== best.title)
+      .slice(0, 4),
+    authorAlternates: [...new Set(ranked.map((h) => h.author).filter(Boolean))]
+      .filter((a) => a !== best.author)
+      .slice(0, 4),
     source: 'ocr',
   }
 }

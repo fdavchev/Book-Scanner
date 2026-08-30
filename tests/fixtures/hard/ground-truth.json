@@ -1,0 +1,164 @@
+[
+  {
+    "id": "clean-baseline",
+    "file": "clean-baseline.png",
+    "title": "The Old Man and the Sea",
+    "author": "Ernest Hemingway",
+    "expect": "book",
+    "probe": "a high-quality cover, the control for every other case",
+    "lang": "eng"
+  },
+  {
+    "id": "blurry",
+    "file": "blurry.png",
+    "title": "Wuthering Heights",
+    "author": "Emily Brontë",
+    "expect": "book",
+    "probe": "camera shake — the single most common bad photo",
+    "lang": "eng"
+  },
+  {
+    "id": "very-blurry",
+    "file": "very-blurry.png",
+    "title": "Moby Dick",
+    "author": "Herman Melville",
+    "expect": "book",
+    "probe": "badly out of focus — the lookup recovers it from a partial reading",
+    "lang": "eng"
+  },
+  {
+    "id": "angled",
+    "file": "angled.png",
+    "title": "Crime and Punishment",
+    "author": "Fyodor Dostoevsky",
+    "expect": "book",
+    "probe": "photographed from the side, so the cover is a trapezoid",
+    "lang": "eng"
+  },
+  {
+    "id": "steep-angle",
+    "file": "steep-angle.png",
+    "title": "Anna Karenina",
+    "author": "Leo Tolstoy",
+    "expect": "author",
+    "probe": "a severe perspective — only the author survives",
+    "lang": "eng"
+  },
+  {
+    "id": "tilted",
+    "file": "tilted.png",
+    "title": "Jane Eyre",
+    "author": "Charlotte Brontë",
+    "expect": "book",
+    "probe": "held crooked — rotation without perspective",
+    "lang": "eng"
+  },
+  {
+    "id": "dim-light",
+    "file": "dim-light.png",
+    "title": "Great Expectations",
+    "author": "Charles Dickens",
+    "expect": "book",
+    "probe": "photographed indoors at night",
+    "lang": "eng"
+  },
+  {
+    "id": "harsh-glare",
+    "file": "harsh-glare.png",
+    "title": "The Picture of Dorian Gray",
+    "author": "Oscar Wilde",
+    "expect": "book",
+    "probe": "a bright reflection across the cover, as glossy jackets give",
+    "lang": "eng"
+  },
+  {
+    "id": "low-resolution",
+    "file": "low-resolution.png",
+    "title": "Treasure Island",
+    "author": "Robert Louis Stevenson",
+    "expect": "book",
+    "probe": "a distant photo — few pixels per letter",
+    "lang": "eng"
+  },
+  {
+    "id": "title-only",
+    "file": "title-only.png",
+    "title": "Frankenstein",
+    "author": "Mary Shelley",
+    "expect": "book",
+    "probe": "the author is not printed on the front at all",
+    "lang": "eng"
+  },
+  {
+    "id": "author-prominent",
+    "file": "author-prominent.png",
+    "title": "The Shining",
+    "author": "Stephen King",
+    "expect": "book",
+    "probe": "the author is set larger than the title, as on a famous name’s books",
+    "lang": "eng"
+  },
+  {
+    "id": "title-illegible",
+    "file": "title-illegible.png",
+    "title": "Slaughterhouse-Five",
+    "author": "Kurt Vonnegut",
+    "expect": "author",
+    "probe": "a decorative title and a clean author — naming the author is the win",
+    "lang": "eng"
+  },
+  {
+    "id": "similar-title-a",
+    "file": "similar-title-a.png",
+    "title": "The Sound and the Fury",
+    "author": "William Faulkner",
+    "expect": "book",
+    "probe": "must not be confused with the other book of almost the same name",
+    "lang": "eng"
+  },
+  {
+    "id": "similar-title-b",
+    "file": "similar-title-b.png",
+    "title": "The Sound of Things Falling",
+    "author": "Juan Gabriel Vásquez",
+    "expect": "book",
+    "probe": "the near-twin of the previous cover",
+    "lang": "eng"
+  },
+  {
+    "id": "macedonian",
+    "file": "macedonian.png",
+    "title": "Тврдина",
+    "author": "Славко Јаневски",
+    "expect": "uncertain",
+    "probe": "Cyrillic title and author",
+    "lang": "mkd"
+  },
+  {
+    "id": "macedonian-latin-author",
+    "file": "macedonian-latin-author.png",
+    "title": "Пиреј",
+    "author": "Petre M. Andreevski",
+    "expect": "author",
+    "probe": "a Cyrillic title over a Latin author name",
+    "lang": "mkd"
+  },
+  {
+    "id": "noisy-blurbs",
+    "file": "noisy-blurbs.png",
+    "title": "Never Let Me Go",
+    "author": "Kazuo Ishiguro",
+    "expect": "book",
+    "probe": "a cover buried in review quotes and prize flashes",
+    "lang": "eng"
+  },
+  {
+    "id": "unreadable",
+    "file": "unreadable.png",
+    "title": "",
+    "author": "",
+    "expect": "uncertain",
+    "probe": "no legible text — the scanner must say so instead of inventing a book",
+    "lang": "eng"
+  }
+]

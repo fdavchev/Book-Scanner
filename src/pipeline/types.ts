@@ -33,6 +33,29 @@ export interface OcrResult {
   meanConfidence: number
 }
 
+/** One (variant × page-segmentation mode) reading of the image. */
+export interface OcrPass {
+  variant: 'raw' | 'grayscale' | 'binarised' | 'flattened'
+  psm: string
+  lines: OcrLine[]
+  meanConfidence: number
+  ms: number
+}
+
+/**
+ * Everything OCR managed to read, pooled across passes.
+ *
+ * The pipeline works on this rather than on a single reading. One pass never sees a whole
+ * cover: measured on the benchmark set, the title of *The Great Gatsby* is legible only in
+ * the grayscale sparse-text pass and *To Kill a Mockingbird* only in the single-block pass.
+ * Pooling the passes is what makes the later stages able to find them.
+ */
+export interface OcrEvidence extends OcrResult {
+  passes: OcrPass[]
+  /** Every distinct line any pass read, best-confidence copy kept. */
+  lines: OcrLine[]
+}
+
 /** A title/author guess produced by `candidates.ts`. */
 export interface Detection {
   title: string
@@ -44,4 +67,23 @@ export interface Detection {
   titleAlternates: string[]
   authorAlternates: string[]
   source: 'ocr' | 'openlibrary' | 'manual'
+}
+
+/**
+ * A complete interpretation of one cover: which line is the title, which is the author.
+ *
+ * The detector emits several of these rather than committing to one, because the
+ * strongest local reading is regularly wrong — on *The Handmaid's Tale* the author is set
+ * larger than the title, so scoring by glyph height alone swaps the two. Keeping the
+ * runner-up interpretations lets the identification stage pick the one the catalogue
+ * actually corroborates.
+ */
+export interface Hypothesis {
+  title: string
+  author: string
+  /** 0–1, how well this interpretation is supported by the OCR evidence alone. */
+  score: number
+  reason: string
+  /** OCR's confidence in the line used as the author, 0–100. */
+  authorConfidence?: number
 }

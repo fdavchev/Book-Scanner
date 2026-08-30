@@ -10,7 +10,12 @@
     <script type="module">
       import { prepare } from '/src/pipeline/preprocess.ts'
       import { TesseractPool, readImage } from '/src/pipeline/ocr.ts'
-      import { detect, groupLines, isNoise } from '/src/pipeline/candidates.ts'
+      import { detect, hypotheses } from '/src/pipeline/candidates.ts'
+      import { identify } from '/src/pipeline/identify.ts'
+      import { createLookupCache } from '/src/storage/db.ts'
+
+      // Shared across the whole benchmark run so repeated queries do not hammer the API.
+      const lookupCache = createLookupCache()
 
       /** Photographic degradation, so the numbers reflect phone photos, not clean artwork. */
       async function degrade(blob, { rotate = 3, blur = 0.6, darken = 0.85, quality = 0.4 } = {}) {
@@ -45,46 +50,35 @@
           let blob = base64ToBlob(base64, options.type)
           if (options.degrade) blob = await degrade(blob, options.degrade)
           const started = performance.now()
-          const prepared = await prepare(blob, options.longEdge ?? 1600, options.maxUpscale)
-          // `variant` is a bench-only override used to compare preprocessing strategies.
-          const ocr =
-            options.variant && options.variant !== 'auto'
-              ? await pool.recognise(prepared[options.variant], options.psm, options.dpi)
-              : await readImage(pool, prepared)
-          const detection = detect(ocr)
+          const prepared = await prepare(blob)
+          const ocr = await readImage(pool, prepared)
+          let detection = detect(ocr)
+          let lookup
+          if (options.lookup) {
+            const outcome = await identify(ocr, hypotheses(ocr), detection, { cache: lookupCache })
+            lookup = {
+              query: outcome.queries.join(' | '),
+              matched: outcome.matched,
+              error: outcome.error,
+              ranked: outcome.ranked.map((s) => ({
+                title: s.doc.title,
+                author: s.doc.author_name?.[0],
+                t: Number(s.titleSupport.toFixed(2)),
+                a: Number(s.authorSupport.toFixed(2)),
+                ok: s.accepted,
+              })),
+            }
+            detection = outcome.detection
+          }
           return {
             ...detection,
+            lookup,
             ms: Math.round(performance.now() - started),
             meanConfidence: Math.round(ocr.meanConfidence),
             lineCount: ocr.lines.length,
+            passes: (ocr.passes ?? []).map((p) => `${p.variant}/${p.psm}`),
             thumbnailBytes: prepared.thumbnail.size,
             rawText: ocr.text,
-          }
-        },
-        /** Per-cover dump used while tuning the scorer: every OCR line and every candidate. */
-        async diagnose(base64, options = {}) {
-          let blob = base64ToBlob(base64, options.type)
-          if (options.degrade) blob = await degrade(blob, options.degrade)
-          const prepared = await prepare(blob, options.longEdge ?? 1600, options.maxUpscale)
-          const ocr = await readImage(pool, prepared)
-          return {
-            size: [ocr.width, ocr.height],
-            lines: ocr.lines.map((l) => ({
-              text: l.text,
-              conf: Math.round(l.confidence),
-              y0: l.bbox.y0,
-              y1: l.bbox.y1,
-              x0: l.bbox.x0,
-              x1: l.bbox.x1,
-              noise: isNoise(l.text),
-            })),
-            candidates: groupLines(ocr.lines, ocr.height).map((c) => ({
-              text: c.text,
-              height: Math.round(c.height),
-              conf: Math.round(c.confidence),
-              centreY: Number(c.centreY.toFixed(2)),
-            })),
-            detection: detect(ocr),
           }
         },
         async dispose() {

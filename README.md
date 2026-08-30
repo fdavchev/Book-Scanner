@@ -112,34 +112,41 @@ npm run preview      # serve the built app
 ### Tests
 
 ```bash
-npm test             # 103 unit tests (vitest)
-npm run test:e2e     # 25 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
+npm test             # 133 unit tests (vitest)
+npm run test:e2e     # 31 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
 ```
 
 ### Measuring accuracy
 
 ```bash
-node scripts/make-fixtures.mjs      # render the cover fixtures
-npm run benchmark                   # → docs/accuracy-covers.md
-npm run benchmark -- --degraded     # with photographic degradation applied
-npm run fetch-benchmark             # download real covers from Open Library
-npm run benchmark -- --real         # → docs/accuracy-benchmark.md
+node scripts/make-fixtures.mjs        # render the clean covers
+npm run make-hard-fixtures            # render the 18 difficult covers
+npm run fetch-benchmark               # download real covers from Open Library
+
+npm run benchmark                     # clean covers, offline
+npm run benchmark -- --hard --lookup  # difficult set, with the catalogue
+npm run benchmark -- --real --lookup  # real low-resolution artwork
 ```
+
+Each run writes a `docs/accuracy-<set>-<online|offline>.md` with per-cover results.
 
 ## Measured accuracy
 
-Full numbers and method: [`docs/project-report.md`](docs/project-report.md).
+How the scanner was rebuilt, and the before/after numbers:
+[`docs/scanner-rebuild.md`](docs/scanner-rebuild.md).
 
-| Set | Title exact | Author found |
-|---|---|---|
-| Rendered covers at photo resolution, clean | **15/15** | **15/15** |
-| The same, rotated / blurred / darkened / JPEG q40 | **13/15** | **14/15** |
-| Real Open Library artwork, 300×500 thumbnails | 1/15 | 0/15 |
+| Set | Title exact | Author found | Confidently wrong |
+|---|---|---|---|
+| Clean covers at photo resolution | **15/15** | **15/15** | **0/15** |
+| 18 deliberately difficult covers (blur, angles, glare, dim light, Cyrillic) | **14/18** | **15/18** | 2/18 |
+| Real Open Library artwork, 300×500 thumbnails | 8/15 | 9/15 | **0/15** |
 
-That last row is not a typo, and it is the honest headline caveat: tesseract cannot read
-low-resolution stylised cover *artwork*. It reads a **photograph of a physical book**
-well, because such a photo is thousands of pixels wide and the title is hundreds of pixels
-tall. The two upper rows are the case this app is actually used in.
+"Confidently wrong" — a wrong book reported at 60% confidence or more — is the number that
+matters most, because those are the answers you would accept without checking. It was 8/15
+on the real covers before the rebuild.
+
+Low-resolution artwork remains the hard case; a photograph of a physical book is thousands
+of pixels wide, which is the case the app is actually used in.
 
 ## Limitations
 

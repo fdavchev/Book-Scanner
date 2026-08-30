@@ -17,6 +17,8 @@ export const THUMB_QUALITY = 0.72
 export interface Prepared {
   /** The photo, EXIF-corrected and resized, otherwise untouched. */
   raw: ImageData
+  /** Grayscale with uneven lighting divided out — for glare and shadow. */
+  flattened: ImageData
   /** High-contrast binarised image — the first thing OCR is asked to read. */
   binarised: ImageData
   /** Contrast-stretched grayscale, used for the retry pass when binarisation loses a
@@ -130,6 +132,62 @@ export function toGrayscale(image: ImageData): ImageData {
   return out
 }
 
+/**
+ * Divides out uneven lighting.
+ *
+ * A glossy jacket photographed under a lamp has a bright band across it; a shelf photo has
+ * a shadow down one side. Both defeat any single global threshold, and they defeat
+ * tesseract too — a reflection across *The Picture of Dorian Gray* reduced it to "The
+ * Pic". Estimating the local background brightness with a fast box blur and dividing each
+ * pixel by it removes the gradient while leaving the letters, because letters are small
+ * relative to the blur radius and the background is not.
+ */
+export function flattenIllumination(grayscale: ImageData, radius = 24): ImageData {
+  const { width, height, data } = grayscale
+  const luma = new Float32Array(width * height)
+  for (let p = 0, i = 0; p < luma.length; p++, i += 4) luma[p] = data[i]
+
+  // Separable box blur over a summed-area row pass then column pass — O(pixels).
+  const horizontal = new Float32Array(width * height)
+  for (let y = 0; y < height; y++) {
+    let sum = 0
+    const row = y * width
+    for (let x = 0; x < Math.min(radius, width); x++) sum += luma[row + x]
+    for (let x = 0; x < width; x++) {
+      const add = x + radius
+      const drop = x - radius - 1
+      if (add < width) sum += luma[row + add]
+      if (drop >= 0) sum -= luma[row + drop]
+      const count = Math.min(width - 1, x + radius) - Math.max(0, x - radius) + 1
+      horizontal[row + x] = sum / count
+    }
+  }
+  const background = new Float32Array(width * height)
+  for (let x = 0; x < width; x++) {
+    let sum = 0
+    for (let y = 0; y < Math.min(radius, height); y++) sum += horizontal[y * width + x]
+    for (let y = 0; y < height; y++) {
+      const add = y + radius
+      const drop = y - radius - 1
+      if (add < height) sum += horizontal[add * width + x]
+      if (drop >= 0) sum -= horizontal[drop * width + x]
+      const count = Math.min(height - 1, y + radius) - Math.max(0, y - radius) + 1
+      background[y * width + x] = sum / count
+    }
+  }
+
+  const out = new ImageData(width, height)
+  for (let p = 0, i = 0; p < luma.length; p++, i += 4) {
+    // 128 keeps mid-grey where the pixel equals its local background.
+    const value = Math.max(0, Math.min(255, (luma[p] / Math.max(1, background[p])) * 160))
+    out.data[i] = value
+    out.data[i + 1] = value
+    out.data[i + 2] = value
+    out.data[i + 3] = 255
+  }
+  return out
+}
+
 /** Otsu's method: the threshold that maximises between-class variance. */
 export function otsuThreshold(image: ImageData): number {
   const histogram = new Uint32Array(256)
@@ -207,6 +265,7 @@ export async function prepare(
 
     const grayscale = toGrayscale(raw)
     const binarised = binarise(grayscale)
+    const flattened = flattenIllumination(grayscale)
 
     const thumbScale = scaleFor(bitmap.width, bitmap.height, THUMB_LONG_EDGE)
     const thumbCanvas = createCanvas(
@@ -219,7 +278,7 @@ export async function prepare(
     thumbCtx.drawImage(bitmap, 0, 0, thumbCanvas.width, thumbCanvas.height)
     const thumbnail = await canvasToBlob(thumbCanvas, THUMB_QUALITY)
 
-    return { raw, binarised, grayscale, width, height, thumbnail }
+    return { raw, binarised, grayscale, flattened, width, height, thumbnail }
   } finally {
     bitmap.close()
   }
@@ -242,4 +301,72 @@ export async function cropBlob(
   } finally {
     bitmap.close()
   }
+}
+
+// ------------------------------------------------------------------ image quality
+
+export interface ImageQuality {
+  /** Relative sharpness, 0–1. Below ~0.15 the text is usually unreadable. */
+  sharpness: number
+  /** Mean brightness, 0–1. */
+  brightness: number
+  /** How much of the tonal range the image uses, 0–1. */
+  contrast: number
+  megapixels: number
+  /** Plain-language problems, worst first. Empty when the photo is fine. */
+  warnings: string[]
+}
+
+/**
+ * Judges a photo before OCR runs, so the app can tell the user what is wrong with it
+ * rather than silently returning nothing.
+ *
+ * Sharpness is the variance of a Laplacian — the standard focus measure. A sharp edge
+ * produces a large second derivative; a blurred one does not.
+ */
+export function assessQuality(grayscale: ImageData): ImageQuality {
+  const { width, height, data } = grayscale
+  const megapixels = (width * height) / 1e6
+
+  let sum = 0
+  let min = 255
+  let max = 0
+  let laplacianSum = 0
+  let laplacianSquares = 0
+  let samples = 0
+
+  const at = (x: number, y: number) => data[(y * width + x) * 4]
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const value = at(x, y)
+      sum += value
+      if (value < min) min = value
+      if (value > max) max = value
+      const laplacian = 4 * value - at(x - 1, y) - at(x + 1, y) - at(x, y - 1) - at(x, y + 1)
+      laplacianSum += laplacian
+      laplacianSquares += laplacian * laplacian
+      samples++
+    }
+  }
+
+  if (samples === 0) {
+    return { sharpness: 0, brightness: 0, contrast: 0, megapixels, warnings: ['The photo is empty'] }
+  }
+
+  const mean = laplacianSum / samples
+  const variance = laplacianSquares / samples - mean * mean
+  // Normalised against a value that clean cover type comfortably exceeds.
+  const sharpness = Math.min(1, Math.sqrt(Math.max(0, variance)) / 45)
+  const brightness = sum / samples / 255
+  const contrast = (max - min) / 255
+
+  const warnings: string[] = []
+  if (sharpness < 0.15) warnings.push('The photo looks blurry — hold the phone steady and try again')
+  if (brightness < 0.22) warnings.push('The photo is very dark — find more light')
+  else if (brightness > 0.9) warnings.push('The photo is washed out — move the light off the cover')
+  if (contrast < 0.35) warnings.push('The cover is low contrast — try a straighter angle to the light')
+  if (megapixels < 0.25) warnings.push('The photo is small — move closer so the cover fills the frame')
+
+  return { sharpness, brightness, contrast, megapixels, warnings }
 }

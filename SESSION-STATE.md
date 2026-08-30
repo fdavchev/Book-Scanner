@@ -11,12 +11,20 @@ marked "cut first" in the plan) was not attempted — the reasoning is in
 
 | | |
 |---|---|
-| Unit tests | **103 passing** (`npm test`) |
-| End-to-end tests | **25 passing, 2 skipped** (`npm run test:e2e`) — Chromium, Pixel 7, iPhone 14/WebKit |
+| Unit tests | **133 passing** (`npm test`) |
+| End-to-end tests | **31 passing, 5 skipped** (`npm run test:e2e`) — Chromium, Pixel 7, iPhone 14/WebKit |
 | Typecheck / lint | clean (`npx tsc -b`, `npm run lint`) |
-| Title accuracy | **15/15** clean, **13/15** degraded, on covers at phone-photo resolution |
-| Author accuracy | **15/15** clean, **14/15** degraded |
+| Title accuracy | **15/15** clean · **14/18** on the difficult set · **8/15** on low-res artwork |
+| Author accuracy | **15/15** clean · **15/18** difficult · **9/15** low-res |
+| Confidently wrong | **0/15** clean · **0/15** low-res (was 8/15 before the scanner rebuild) |
 | Offline cold start | verified by automated test |
+
+## The scanner was rebuilt (30 August 2026)
+
+The recognition pipeline was redesigned after it proved unreliable: one OCR pass, a
+detector that committed to a single reading, and a lookup that could confidently attach the
+wrong author. `docs/scanner-rebuild.md` is the full account — what was wrong, why the
+online path was *worse* than offline, what replaced it, and the measured before/after.
 
 ## Read these, in this order
 
@@ -24,7 +32,8 @@ marked "cut first" in the plan) was not attempted — the reasoning is in
    explicit list of what is **NOT VERIFIED**.
 2. `README.md` — what it is and how to run it.
 3. `DECISIONS.md` — every non-obvious call, including two real bugs the tests caught.
-4. `docs/install-on-your-phone.md` — the plain-language install tutorial.
+4. `docs/scanner-rebuild.md` — the scanner redesign, with before/after numbers.
+5. `docs/install-on-your-phone.md` — the plain-language install tutorial.
 
 ## Two bugs worth knowing about, because they will bite again if reverted
 
