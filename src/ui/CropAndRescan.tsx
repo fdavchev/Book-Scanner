@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cropBlob, prepare } from '../pipeline/preprocess'
-import { TesseractPool, readImage } from '../pipeline/ocr'
+import { TesseractPool, readImage, type LanguageCode } from '../pipeline/ocr'
 import { detect } from '../pipeline/candidates'
 import type { ReviewItem } from '../pipeline/group'
 
@@ -20,10 +20,13 @@ interface Rect {
  */
 export function CropAndRescan({
   item,
+  languages,
   onCancel,
   onResult,
 }: {
   item: ReviewItem
+  /** The languages the user is scanning in — the repair path must use them too. */
+  languages: LanguageCode[]
   onCancel: () => void
   onResult: (item: ReviewItem) => void
 }) {
@@ -54,7 +57,9 @@ export function CropAndRescan({
     try {
       const cropped = await cropBlob(source, rect)
       const prepared = await prepare(cropped)
-      pool = await TesseractPool.create(['eng'], 1)
+      // Hardcoding English here re-read a Macedonian cover with the wrong model on the
+      // very screen provided to fix a bad reading.
+      pool = await TesseractPool.create(languages, 1)
       const ocr = await readImage(pool, prepared)
       const detection = detect(ocr)
       onResult({

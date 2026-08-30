@@ -39,6 +39,9 @@ test.describe('offline', () => {
 
     // Run the first-run download that makes the OCR engine available offline.
     await page.getByRole('button', { name: 'Set up offline scanning' }).click()
+    // The app defaults to Macedonian; this fixture is English, and with the network cut
+    // there is no second chance to fetch a model that was not downloaded here.
+    await page.getByRole('checkbox', { name: 'English' }).check()
     await page.getByRole('button', { name: 'Download', exact: true }).click()
     await expect(page.getByText('Offline scanning is ready')).toBeVisible({ timeout: 180_000 })
 
@@ -54,6 +57,9 @@ test.describe('offline', () => {
     await expect(pill).toBeEnabled()
 
     // The part that matters: scanning, OCR and detection with no network at all.
+    // English fixtures, and the app now defaults to Macedonian.
+    const english = page.getByRole('button', { name: 'English' })
+    if ((await english.getAttribute('aria-pressed')) !== 'true') await english.click()
     await page.getByTestId('file-input').setInputFiles(join(fixtures, 'thirteen-doors.png'))
     await expect(page.getByTestId('review-card')).toBeVisible({ timeout: 120_000 })
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Thirteen Doors')

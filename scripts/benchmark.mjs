@@ -20,7 +20,13 @@ const args = process.argv.slice(2)
 const degraded = args.includes('--degraded')
 // Which fixture set: the rendered covers (default, phone-photo resolution) or the real
 // low-resolution Open Library artwork.
-const set = args.includes('--real') ? 'benchmark' : args.includes('--hard') ? 'hard' : 'covers'
+const set = args.includes('--real')
+    ? 'benchmark'
+    : args.includes('--hard')
+      ? 'hard'
+      : args.includes('--mk')
+        ? 'mk'
+        : 'covers'
 // With the lookup on, the catalogue is used to corroborate what OCR read. Off, the result
 // is whatever the device could work out on its own.
 const lookup = args.includes('--lookup')
@@ -132,7 +138,11 @@ async function main() {
   try {
     await page.goto('http://localhost:5199/bench.html', { waitUntil: 'load' })
     await page.waitForFunction(() => window.benchReady === true, { timeout: 60000 })
-    await page.evaluate(() => window.bench.init(['eng']))
+    // The OCR model has to match the book. The `lang` field in each fixture set's ground
+    // truth was written but never read, so the Cyrillic fixtures were being run through the
+    // English model and every Macedonian number was meaningless.
+    const langs = [...new Set(truth.map((t) => t.lang ?? 'eng'))]
+    await page.evaluate(([l]) => window.bench.init(l), [langs])
 
     for (const book of truth) {
       if (!available.has(book.file)) continue

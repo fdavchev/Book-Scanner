@@ -10,7 +10,13 @@
     <script type="module">
       import { prepare } from '/src/pipeline/preprocess.ts'
       import { TesseractPool, readImage } from '/src/pipeline/ocr.ts'
-      import { detect, hypotheses } from '/src/pipeline/candidates.ts'
+      import {
+        detect,
+        groupLines,
+        hypotheses,
+        isNoise,
+        tallestLineHeight,
+      } from '/src/pipeline/candidates.ts'
       import { identify } from '/src/pipeline/identify.ts'
       import { createLookupCache } from '/src/storage/db.ts'
 
@@ -79,6 +85,41 @@
             passes: (ocr.passes ?? []).map((p) => `${p.variant}/${p.psm}`),
             thumbnailBytes: prepared.thumbnail.size,
             rawText: ocr.text,
+          }
+        },
+        /** Per-cover dump: every line OCR read, and every candidate that survived. */
+        async diagnose(base64, options = {}) {
+          const blob = base64ToBlob(base64, options.type)
+          const prepared = await prepare(blob)
+          const ocr = await readImage(pool, prepared)
+          const pageMax = tallestLineHeight(ocr.lines)
+          return {
+            size: [ocr.width, ocr.height],
+            pageMax: Math.round(pageMax),
+            lines: ocr.lines.map((l) => ({
+              text: l.text,
+              conf: Math.round(l.confidence),
+              h: Math.round(
+                l.words.length
+                  ? l.words.map((w) => w.bbox.y1 - w.bbox.y0).sort((a, b) => a - b)[
+                      Math.floor(l.words.length / 2)
+                    ]
+                  : l.bbox.y1 - l.bbox.y0,
+              ),
+              y: l.bbox.y0,
+              noise: isNoise(l.text),
+            })),
+            candidates: groupLines(ocr.lines, ocr.height).map((c) => ({
+              text: c.text,
+              h: Math.round(c.height),
+              rel: Number((c.height / Math.max(1, pageMax)).toFixed(2)),
+              conf: Math.round(c.confidence),
+            })),
+            hypotheses: hypotheses(ocr).map((h) => ({
+              t: h.title,
+              a: h.author,
+              s: Number(h.score.toFixed(2)),
+            })),
           }
         },
         async dispose() {

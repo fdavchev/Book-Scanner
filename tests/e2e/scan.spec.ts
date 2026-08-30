@@ -9,14 +9,27 @@ const fixtures = join(process.cwd(), 'tests', 'fixtures', 'covers')
  * The catalogue lookup is switched off first. These fixtures are invented books, so what
  * Open Library returns for them is neither stable nor meaningful — and a test of the scan
  * flow should not depend on a network round trip anyway. The lookup has its own tests.
+ *
+ * The language is switched to English too: the app now defaults to Macedonian, and these
+ * fixtures are English covers.
  */
 async function scanCover(page: Page, file: string) {
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
   const pill = page.getByTestId('lookup-pill')
   if ((await pill.getAttribute('data-mode')) !== 'forced-off') await pill.click()
   await expect(pill).toHaveAttribute('data-mode', 'forced-off')
+  await selectEnglish(page)
   await page.getByTestId('file-input').setInputFiles(join(fixtures, file))
   await expect(page.getByTestId('review-card').first()).toBeVisible({ timeout: 120_000 })
+}
+
+/** These fixtures are English, and the app now defaults to Macedonian. */
+async function selectEnglish(page: Page) {
+  const english = page.getByRole('button', { name: 'English' })
+  if ((await english.getAttribute('aria-pressed')) !== 'true') await english.click()
+  const macedonian = page.getByRole('button', { name: 'Macedonian' })
+  if ((await macedonian.getAttribute('aria-pressed')) === 'true') await macedonian.click()
+  await expect(english).toHaveAttribute('aria-pressed', 'true')
 }
 
 test.beforeEach(async ({ page }) => {
@@ -101,6 +114,7 @@ test('two photos of the same book collapse into one review card', async ({ page 
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
   const pill = page.getByTestId('lookup-pill')
   if ((await pill.getAttribute('data-mode')) !== 'forced-off') await pill.click()
+  await selectEnglish(page)
   await page
     .getByTestId('file-input')
     .setInputFiles([join(fixtures, 'quiet-machine.png'), join(fixtures, 'quiet-machine.png')])

@@ -2,10 +2,10 @@
   "summary": {
     "covers": 15,
     "degraded": false,
-    "titleExact": 15,
-    "titleFuzzy": 15,
+    "titleExact": 14,
+    "titleFuzzy": 14,
     "authorHit": 14,
-    "medianMs": 3355,
+    "medianMs": 3302,
     "medianThumbKb": 6
   },
   "rows": [
@@ -21,8 +21,8 @@
       "authorHit": true,
       "confidence": 73,
       "meanConfidence": 96,
-      "ms": 5169,
-      "lineCount": 4,
+      "ms": 4491,
+      "lineCount": 3,
       "thumbnailBytes": 5956
     },
     {
@@ -37,7 +37,7 @@
       "authorHit": false,
       "confidence": 45,
       "meanConfidence": 95,
-      "ms": 3244,
+      "ms": 3467,
       "lineCount": 4,
       "thumbnailBytes": 5555
     },
@@ -53,7 +53,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 95,
-      "ms": 3924,
+      "ms": 3302,
       "lineCount": 4,
       "thumbnailBytes": 5784
     },
@@ -67,9 +67,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 93,
+      "confidence": 96,
       "meanConfidence": 93,
-      "ms": 3717,
+      "ms": 3459,
       "lineCount": 4,
       "thumbnailBytes": 5484
     },
@@ -77,15 +77,15 @@
       "id": "salt-and-ash",
       "expectedTitle": "Salt and Ash",
       "expectedAuthor": "Peter Vance",
-      "gotTitle": "Salt and Ash",
+      "gotTitle": "Salt and",
       "gotAuthor": "Peter Vance",
-      "titleExact": true,
-      "titleFuzzy": true,
-      "titleSimilarity": 1,
+      "titleExact": false,
+      "titleFuzzy": false,
+      "titleSimilarity": 0.67,
       "authorHit": true,
-      "confidence": 88,
+      "confidence": 76,
       "meanConfidence": 96,
-      "ms": 3187,
+      "ms": 2936,
       "lineCount": 3,
       "thumbnailBytes": 5178
     },
@@ -101,7 +101,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 3355,
+      "ms": 3151,
       "lineCount": 5,
       "thumbnailBytes": 6899
     },
@@ -117,7 +117,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 96,
-      "ms": 3536,
+      "ms": 3558,
       "lineCount": 4,
       "thumbnailBytes": 5759
     },
@@ -133,7 +133,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 2652,
+      "ms": 3178,
       "lineCount": 4,
       "thumbnailBytes": 5659
     },
@@ -147,9 +147,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 89,
+      "confidence": 93,
       "meanConfidence": 96,
-      "ms": 2986,
+      "ms": 3164,
       "lineCount": 5,
       "thumbnailBytes": 6862
     },
@@ -165,7 +165,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 2635,
+      "ms": 2951,
       "lineCount": 3,
       "thumbnailBytes": 5997
     },
@@ -181,7 +181,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 4097,
+      "ms": 3547,
       "lineCount": 4,
       "thumbnailBytes": 5071
     },
@@ -197,7 +197,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 96,
-      "ms": 3724,
+      "ms": 4290,
       "lineCount": 4,
       "thumbnailBytes": 5441
     },
@@ -211,9 +211,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 95,
+      "confidence": 96,
       "meanConfidence": 95,
-      "ms": 3428,
+      "ms": 3618,
       "lineCount": 5,
       "thumbnailBytes": 6206
     },
@@ -227,9 +227,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 92,
+      "confidence": 94,
       "meanConfidence": 94,
-      "ms": 3135,
+      "ms": 3244,
       "lineCount": 4,
       "thumbnailBytes": 6173
     },
@@ -243,10 +243,10 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 74,
-      "meanConfidence": 95,
-      "ms": 2618,
-      "lineCount": 4,
+      "confidence": 82,
+      "meanConfidence": 94,
+      "ms": 2834,
+      "lineCount": 3,
       "thumbnailBytes": 6275
     }
   ]

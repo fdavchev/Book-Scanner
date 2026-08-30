@@ -1,0 +1,45 @@
+{
+  "summary": {
+    "covers": 2,
+    "degraded": false,
+    "titleExact": 0,
+    "titleFuzzy": 0,
+    "authorHit": 2,
+    "medianMs": 4532,
+    "medianThumbKb": 22
+  },
+  "rows": [
+    {
+      "id": "sherlock-adventures",
+      "expectedTitle": "Авантурите на Шерлок Холмс",
+      "expectedAuthor": "Артур Конан Дојл",
+      "gotTitle": "\"шерло",
+      "gotAuthor": "Артур Кона Ов,",
+      "titleExact": false,
+      "titleFuzzy": false,
+      "titleSimilarity": 0.19,
+      "authorHit": true,
+      "confidence": 31,
+      "meanConfidence": 32,
+      "ms": 4532,
+      "lineCount": 36,
+      "thumbnailBytes": 22783
+    },
+    {
+      "id": "scarlet-study",
+      "expectedTitle": "Скарлетна студија",
+      "expectedAuthor": "Артур Конан Дојл",
+      "gotTitle": "Скарлетна",
+      "gotAuthor": "Уарлур Конан Дојл:",
+      "titleExact": false,
+      "titleFuzzy": false,
+      "titleSimilarity": 0.53,
+      "authorHit": true,
+      "confidence": 37,
+      "meanConfidence": 38,
+      "ms": 3603,
+      "lineCount": 27,
+      "thumbnailBytes": 22641
+    }
+  ]
+}

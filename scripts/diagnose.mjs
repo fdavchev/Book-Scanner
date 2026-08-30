@@ -11,7 +11,13 @@ import { readFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 
 const args = process.argv.slice(2)
-const set = args.includes('--real') ? 'benchmark' : args.includes('--hard') ? 'hard' : 'covers'
+const set = args.includes('--real')
+    ? 'benchmark'
+    : args.includes('--hard')
+      ? 'hard'
+      : args.includes('--mk')
+        ? 'mk'
+        : 'covers'
 const lookup = args.includes('--lookup')
 const degraded = args.includes('--degraded')
 const verbose = args.includes('--verbose')
@@ -52,7 +58,11 @@ const page = await browser.newPage()
 page.on('pageerror', (e) => console.log('[pageerror]', String(e).slice(0, 200)))
 await page.goto('http://localhost:5199/bench.html', { waitUntil: 'load' })
 await page.waitForFunction(() => window.benchReady === true, { timeout: 60000 })
-await page.evaluate(() => window.bench.init(['eng']))
+// The OCR model has to match the book. The `lang` field in each fixture set's ground
+    // truth was written but never read, so the Cyrillic fixtures were being run through the
+    // English model and every Macedonian number was meaningless.
+    const langs = [...new Set(truth.map((t) => t.lang ?? 'eng'))]
+    await page.evaluate(([l]) => window.bench.init(l), [langs])
 
 let exact = 0
 let fuzzy = 0

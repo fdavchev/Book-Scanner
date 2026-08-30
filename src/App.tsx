@@ -57,7 +57,12 @@ export default function App() {
         )}
         {route === 'scan' && <ScanScreen settings={settings} onScanned={goToReview} />}
         {route === 'review' && (
-          <ReviewScreen items={pending} onChange={setPending} onDone={finishReview} />
+          <ReviewScreen
+            items={pending}
+            languages={settings.settings.languages}
+            onChange={setPending}
+            onDone={finishReview}
+          />
         )}
         {route === 'library' && (
           <LibraryScreen books={books} query={query} onQueryChange={setQuery} />

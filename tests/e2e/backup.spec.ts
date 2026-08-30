@@ -24,7 +24,10 @@ test('a collection exported on one device restores on another', async ({ page, b
 
   // Put a real scanned book in, cover and all.
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
-  await page.getByTestId('file-input').setInputFiles(join(fixtures, 'winter-letters.png'))
+  // English fixtures, and the app now defaults to Macedonian.
+    const english = page.getByRole('button', { name: 'English' })
+    if ((await english.getAttribute('aria-pressed')) !== 'true') await english.click()
+    await page.getByTestId('file-input').setInputFiles(join(fixtures, 'winter-letters.png'))
   await expect(page.getByTestId('review-card').first()).toBeVisible({ timeout: 120_000 })
   await page.getByTestId('save-all').click()
   await expect(page.getByTestId('book-row')).toHaveCount(1)

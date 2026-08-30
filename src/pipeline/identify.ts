@@ -44,6 +44,8 @@ const SIGNIFICANT_TOKEN = 4
 const STOPWORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'to', 'for', 'at', 'by', 'from', 'with',
   'novel', 'book', 'story', 'tales', 'edition', 'vol', 'part', 'new', 'his', 'her', 'their',
+  // Macedonian function words and the commonest cover nouns.
+  'на', 'во', 'од', 'за', 'со', 'и', 'се', 'го', 'ги', 'роман', 'книга', 'издание',
 ])
 
 function significantTokens(input: string): string[] {
@@ -118,6 +120,14 @@ export function significantCoverage(catalogueText: string, ocrTokens: string[]):
   const wanted = significantTokens(catalogueText)
   if (wanted.length === 0) return 0
   return wanted.filter((w) => ocrTokens.some((o) => tokenMatches(o, w))).length / wanted.length
+}
+
+/** Which alphabet a string is mostly written in. */
+export function dominantScript(input: string): 'cyrillic' | 'latin' | 'other' {
+  const cyrillic = (input.match(/\p{Script=Cyrillic}/gu) ?? []).length
+  const latin = (input.match(/\p{Script=Latin}/gu) ?? []).length
+  if (cyrillic === 0 && latin === 0) return 'other'
+  return cyrillic >= latin ? 'cyrillic' : 'latin'
 }
 
 /** The longest catalogue word that OCR actually saw — a 3-letter match proves nothing. */
@@ -343,6 +353,16 @@ export function scoreDoc(doc: OpenLibraryDoc, evidence: EvidencePool): ScoredDoc
     // with the catalogue's author nowhere on the cover, means a book *about* Tolstoy.
     accepted = false
     reason = 'this looks like a book about that name, not by it'
+  }
+
+  // A Macedonian edition usually exists in the catalogue only as its English original, so
+  // matching on the author would quietly replace "Авантурите на Шерлок Холмс" with "The
+  // Adventures of Sherlock Holmes". The book on the shelf says the former. The catalogue
+  // may still name the author — that goes through the author-only path below.
+  const coverScript = dominantScript(evidence.ocrTokens.join(' '))
+  if (accepted && coverScript !== 'other' && dominantScript(doc.title ?? '') !== coverScript) {
+    accepted = false
+    reason = 'this is the same book in another language — keeping the title on the cover'
   }
 
   if (accepted && evidence.coverTitleTokens.length >= 2) {

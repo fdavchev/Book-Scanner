@@ -35,7 +35,9 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   lookupMode: 'auto',
-  languages: ['eng'],
+  // Macedonian, because that is what this collection is. English is one tap away, and
+  // the Macedonian model is the smaller of the two to download for offline use.
+  languages: ['mkd'],
   offlineLanguages: [],
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { downloadOfflineAssets, formatBytes, loadManifest, plan } from '../offline/ocrAssets'
 import type { SettingsApi } from './useSettings'
 
-const LANGUAGE_NAMES: Record<string, string> = { eng: 'English', mkd: 'Macedonian' }
+const LANGUAGE_NAMES: Record<string, string> = { mkd: 'Macedonian', eng: 'English' }
 
 /**
  * The first-run step that turns "works offline" from a claim into a fact: it pulls the
@@ -33,9 +33,9 @@ export function OfflineSetup({ settings }: { settings: SettingsApi }) {
     const next = chosen.includes(code)
       ? chosen.filter((c) => c !== code)
       : [...chosen, code].sort()
-    setChosen(next.length === 0 ? ['eng'] : next)
+    setChosen(next.length === 0 ? ['mkd'] : next)
     void loadManifest()
-      .then((m) => setEstimate(plan(m, next.length === 0 ? ['eng'] : next).bytes))
+      .then((m) => setEstimate(plan(m, next.length === 0 ? ['mkd'] : next).bytes))
       .catch(() => setEstimate(undefined))
   }
 

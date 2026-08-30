@@ -1,0 +1,20 @@
+[
+  {
+    "id": "sherlock-adventures",
+    "file": "sherlock-adventures.jpg",
+    "title": "Авантурите на Шерлок Холмс",
+    "author": "Артур Конан Дојл",
+    "expect": "book",
+    "probe": "a three-line Cyrillic title stepping from medium to giant type, the last line over dark artwork",
+    "lang": "mkd"
+  },
+  {
+    "id": "scarlet-study",
+    "file": "scarlet-study.jpg",
+    "title": "Скарлетна студија",
+    "author": "Артур Конан Дојл",
+    "expect": "book",
+    "probe": "two huge title lines competing with a tiny translator credit",
+    "lang": "mkd"
+  }
+]

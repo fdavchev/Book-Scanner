@@ -144,7 +144,7 @@ const CASES = [
     probe: 'Cyrillic title and author',
     title: 'Тврдина',
     author: 'Славко Јаневски',
-    expect: 'uncertain',
+    expect: 'book',
     style: {},
     lang: 'mkd',
   },

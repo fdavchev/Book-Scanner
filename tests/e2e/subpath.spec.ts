@@ -87,6 +87,14 @@ test('the app works when served from a subpath, as GitHub Pages serves it', asyn
 
   // The real proof: OCR loads its worker, core and language data from the subpath.
   await page.getByRole('button', { name: 'Scan', exact: true }).click()
+  // English fixture; the app defaults to Macedonian. Both pills are set explicitly and
+  // the state is awaited, so the worker is rebuilt before the file is handed over.
+  const english = page.getByRole('button', { name: 'English' })
+  const macedonian = page.getByRole('button', { name: 'Macedonian' })
+  if ((await english.getAttribute('aria-pressed')) !== 'true') await english.click()
+  if ((await macedonian.getAttribute('aria-pressed')) === 'true') await macedonian.click()
+  await expect(english).toHaveAttribute('aria-pressed', 'true')
+  await expect(macedonian).toHaveAttribute('aria-pressed', 'false')
   await page
     .getByTestId('file-input')
     .setInputFiles(join(process.cwd(), 'tests', 'fixtures', 'covers', 'river-of-stone.png'))

@@ -230,3 +230,80 @@ npm run diagnose -- --hard --lookup --verbose
 `diagnose` prints, for every fixture, what OCR read, what the detector chose, which queries
 went out, what came back, and why each candidate was accepted or rejected. It is the tool
 to reach for when a specific book is misread.
+
+
+---
+
+# Follow-up: Macedonian covers, and letting big letters win the title
+
+Added 30 August 2026, after two real Macedonian covers failed in ways that had nothing to
+do with OCR quality.
+
+## What was wrong
+
+**"Авантурите на Шерлок Холмс"** returned `"Авантурите Н. Шерло"` with the giant `ХОЛМС`
+line missing entirely. **"Скарлетна студија"** got the author right but chose the *tiny*
+translator credit `"Превод: Ѓургица Илиева Нацкова"` as the title, beating two huge lines.
+
+The cause was not that size was weighted too low. `scoreTitles` measured height against
+the tallest **surviving** candidate, and `groupLines` dropped anything under 30%
+confidence — which is exactly what heavy display type over artwork scores. With both title
+lines filtered out, the translator credit became "the largest text on the cover" by
+default, and the per-pass rescaling then normalised it to a perfect 1.0. It won on a
+technicality.
+
+Underneath that, several things were English-only or actively wrong for Macedonian:
+
+| Defect | Effect |
+|---|---|
+| `normalise` decomposed **Ѓ→Г** and **Ќ→К** | the two letters unique to Macedonian were erased |
+| `wordiness` had no vocalic **Р** | `Крв`, `Смрт`, `Прв`, `Црн` scored as garbage in five scoring paths at once |
+| No Macedonian noise words | `Превод:` — the translator — competed for the title |
+| App defaulted to the English model | and `CropAndRescan` hardcoded English on the one screen meant to *fix* a bad read |
+| Harnesses hardcoded `init(['eng'])` | the Cyrillic fixtures were being measured with the wrong model, so every Macedonian number was meaningless |
+
+## What changed
+
+- **An absolute size reference.** `tallestLineHeight` measures the biggest text a pass
+  actually read, before filtering, ignoring zero-confidence artwork reads. It is computed
+  **cover-wide** and passed into every pass, so a pass that read only the author's name can
+  no longer believe that name is full-size.
+- **Large low-confidence lines are kept.** A line at ≥50% of the cover's tallest is
+  admitted at 20% confidence instead of 30%, but must clear a stricter letter-count and
+  word-shape test.
+- **Smallness is disqualifying.** A line below 55% of full size loses score that nothing
+  else can pay back.
+- **Display blocks merge.** A title stepping from medium to giant type joins into one
+  candidate, compared against the previous *line* rather than the block's running average,
+  with the block's height taken as the **median** of its lines.
+- **Letter-spaced type is rejoined.** `Ш Е Р Л О К` reads as one word again.
+- **Duplicate readings are collapsed.** Two passes reading the same physical line no longer
+  concatenate into "СНАБЛЕТНА. СКАРЛЕТНА"; the fuller reading wins.
+- **Macedonian is the default language**, with English one tap away.
+- **A Latin catalogue result can never replace a Cyrillic title** — the book on the shelf
+  says what it says. The catalogue may still name the author.
+
+## Results
+
+| Set | Metric | Before | After |
+|---|---|---|---|
+| **The two Macedonian covers** | Author found | 1/2 | **2/2** |
+| | Title is the translator credit | yes | **no** |
+| | Confidently wrong | 1/2 | **0/2** |
+| **18 difficult covers** | Title exact | 14/18 | **16/18** |
+| | Confidently wrong | 2/18 | **0/18** |
+| **15 clean English covers** | Title exact | 15/15 | 14/15 |
+| **15 real low-res covers** | Title exact | 8/15 | 6/15 |
+| | Confidently wrong | 1/15 | **0/15** |
+
+*Скарлетна студија* now reads **"Скарлетна"** — the real title, where it used to be the
+translator's name. *Авантурите* still returns only the fragment "Шерло": the words
+"АВАНТУРИТЕ" and "ШЕРЛОК" are read by *different* OCR passes, and passes are scored
+separately on purpose, so they cannot be merged into one title. Fixing that needs
+cross-pass line stitching, which an earlier attempt showed does more harm than good.
+
+**The trade, stated plainly.** Making size decisive cost two covers on the low-resolution
+English artwork set and one on the clean set, and gained two on the difficult set. Wrong
+answers fell to zero on every set except the clean one. For a shelf of Macedonian books
+photographed with a phone, that is the right side of the trade; if this were mainly an
+English low-resolution library, it would not be.

@@ -130,7 +130,7 @@
     "file": "macedonian.png",
     "title": "Тврдина",
     "author": "Славко Јаневски",
-    "expect": "uncertain",
+    "expect": "book",
     "probe": "Cyrillic title and author",
     "lang": "mkd"
   },

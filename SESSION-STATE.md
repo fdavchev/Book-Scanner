@@ -26,6 +26,14 @@ detector that committed to a single reading, and a lookup that could confidently
 wrong author. `docs/scanner-rebuild.md` is the full account — what was wrong, why the
 online path was *worse* than offline, what replaced it, and the measured before/after.
 
+## The scanner speaks Macedonian now (30 August 2026)
+
+The app defaults to the Macedonian OCR model, and the title scorer was rebuilt around the
+one rule that actually holds on a cover: the title is the biggest text. Two real Macedonian
+Sherlock Holmes covers are committed as `tests/fixtures/mk/` and measured by
+`npm run benchmark -- --mk --lookup`. Full account, including the trade-offs, at the end of
+`docs/scanner-rebuild.md`.
+
 ## Read these, in this order
 
 1. `docs/project-report.md` — what was built, what was tested, measured accuracy, and an

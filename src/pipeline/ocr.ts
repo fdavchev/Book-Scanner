@@ -5,7 +5,7 @@
  * The rest of the pipeline only sees `OcrResult`, so tesseract's own shapes stop here.
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js'
-import type { OcrEvidence, OcrLine, OcrPass, OcrResult, OcrWord } from './types'
+import type { BBox, OcrEvidence, OcrLine, OcrPass, OcrResult, OcrWord } from './types'
 import { letterCount, wordiness } from './text'
 
 /** Where the app is served from — '/' normally, '/repo-name/' on GitHub Pages. */
@@ -266,7 +266,44 @@ export function mergeLines(passes: OcrPass[]): OcrLine[] {
       if (!existing || line.confidence > existing.confidence) best.set(key, line)
     }
   }
-  return [...best.values()].sort((a, b) => a.bbox.y0 - b.bbox.y0)
+
+  // Different passes reading the *same* physical line rarely agree character for
+  // character, so exact-text dedupe leaves several copies of it — "СНАБЛЕТНА." and
+  // "СКАРЛЕТНА" are one title line read twice. They sit in the same place on the cover, so
+  // the later grouping stage concatenated them into one nonsense candidate. Where two
+  // readings occupy substantially the same box, only the more confident one survives.
+  const kept: OcrLine[] = []
+  for (const line of [...best.values()].sort((a, b) => b.confidence - a.confidence)) {
+    const clash = kept.findIndex((other) => overlapFraction(line.bbox, other.bbox) > 0.6)
+    if (clash === -1) {
+      kept.push(line)
+      continue
+    }
+    // Confidence alone picked the wrong survivor: a pass reading "Salt and" scored higher
+    // than the pass that read the whole "Salt and Ash", and the title lost its last word.
+    // When one reading simply contains the other, the fuller one is the better record of
+    // what is printed there.
+    const existing = kept[clash]
+    if (containsReading(line.text, existing.text)) kept[clash] = line
+  }
+  return kept.sort((a, b) => a.bbox.y0 - b.bbox.y0)
+}
+
+/** True when `candidate` says everything `existing` says, and more. */
+function containsReading(candidate: string, existing: string): boolean {
+  const a = normaliseForDedupe(candidate)
+  const b = normaliseForDedupe(existing)
+  return a.length > b.length && a.includes(b)
+}
+
+/** How much of the smaller box the two boxes share, 0–1. */
+function overlapFraction(a: BBox, b: BBox): number {
+  const width = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
+  const height = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0)
+  if (width <= 0 || height <= 0) return 0
+  const areaA = Math.max(1, (a.x1 - a.x0) * (a.y1 - a.y0))
+  const areaB = Math.max(1, (b.x1 - b.x0) * (b.y1 - b.y0))
+  return (width * height) / Math.min(areaA, areaB)
 }
 
 export interface ReadOptions {

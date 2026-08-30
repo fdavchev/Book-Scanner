@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CoverImage } from './CoverImage'
 import { CropAndRescan } from './CropAndRescan'
 import { mergeItems, splitItem, type ReviewItem } from '../pipeline/group'
+import type { LanguageCode } from '../pipeline/ocr'
 import { addBooks } from '../storage/db'
 
 function confidenceClass(confidence: number): string {
@@ -21,10 +22,12 @@ function confidenceLabel(confidence: number): string {
 
 export function ReviewScreen({
   items,
+  languages,
   onChange,
   onDone,
 }: {
   items: ReviewItem[]
+  languages: LanguageCode[]
   onChange: (items: ReviewItem[]) => void
   onDone: () => void | Promise<void>
 }) {
@@ -81,6 +84,7 @@ export function ReviewScreen({
     return (
       <CropAndRescan
         item={cropping}
+        languages={languages}
         onCancel={() => setCropping(undefined)}
         onResult={(rescanned) => {
           const index = items.findIndex((i) => i.id === cropping.id)

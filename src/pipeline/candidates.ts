@@ -55,6 +55,15 @@ const NOISE_PATTERNS: RegExp[] = [
   // A line opening with a dash is a blurb attribution — "— Village Voice". Treating one
   // as an author made the scanner identify a cover as "The Village Voice Film Guide".
   /^\s*[—–-]{1,2}\s*\p{L}/u,
+  // Macedonian equivalents of the credit lines above. "Превод: ..." — the translator —
+  // is set tiny on a cover and is never the title, but nothing filtered it, so it won the
+  // title slot on a real Sherlock Holmes cover.
+  /(превод|препев)/i,
+  /илустрации/i,
+  /(предговор|поговор)/i,
+  /(прво|второ|трето)\s+издание/i,
+  /издава(ч|штво)/i,
+  /библиотека/i,
 ]
 
 /** Newspapers and magazines that review books. A cover quotes them; none of them wrote it. */
@@ -151,6 +160,19 @@ const IMPRINTS = new Set([
   'canongate',
   'houghton mifflin',
   'little brown',
+  // Macedonian publishers.
+  'антолог',
+  'табернакул',
+  'култура',
+  'просветно дело',
+  'или или',
+  'матица',
+  'магор',
+  'детска радост',
+  'арс ламина',
+  'полица',
+  'слово',
+  'феникс',
 ])
 
 const AUTHOR_PREFIX = /^(by|written by|av|од)\s+/i
@@ -168,13 +190,28 @@ export interface Candidate {
   lines: OcrLine[]
 }
 
+/**
+ * Rejoins display type that OCR split one letter per token.
+ *
+ * Cover titles are frequently letter-spaced, and tesseract reads the tracking as word
+ * breaks: "ШЕРЛОК ХОЛМС" comes back as "Ш Е Р Л О К  Х О Л М С". Left alone, every token
+ * is one letter, so `wordiness` reads it as pure noise and the real title scores zero.
+ * Runs of three or more single letters are glued back together; a genuine initial such as
+ * "J. R. R." is punctuated and never forms a bare run this long.
+ */
+export function joinSpacedLetters(input: string): string {
+  return input.replace(/(?:(?<=^|\s)\p{L}(?=\s|$)){3,}/gu, (run) => run.replace(/\s+/g, ''))
+}
+
 export function cleanText(input: string): string {
-  return input
-    .replace(/[|_~^`]+/g, ' ')
-    .replace(/[“”„]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim()
+  return joinSpacedLetters(
+    input
+      .replace(/[|_~^`]+/g, ' ')
+      .replace(/[“”„]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
 }
 
 export function isNoise(text: string): boolean {
@@ -190,7 +227,7 @@ export function isNoise(text: string): boolean {
   return NOISE_PATTERNS.some((re) => re.test(cleaned))
 }
 
-function lineHeight(line: OcrLine): number {
+export function lineHeight(line: OcrLine): number {
   // Word boxes are tighter than the line box, which tesseract pads for ascenders and
   // descenders, so the median word height is the more stable measure of glyph size.
   const heights = line.words
@@ -199,6 +236,33 @@ function lineHeight(line: OcrLine): number {
     .sort((a, b) => a - b)
   if (heights.length === 0) return line.bbox.y1 - line.bbox.y0
   return heights[Math.floor(heights.length / 2)]
+}
+
+/**
+ * The tallest text a pass read, before any filtering.
+ *
+ * This is the denominator every size judgement uses, and measuring against the candidates
+ * that *survived* filtering was the bug behind the worst failure: on a cover whose two
+ * huge title lines were dropped for low confidence, a tiny translator credit became "the
+ * largest text on the cover" by default and won the title outright. Single-letter reads
+ * are excluded — a decorative flourish read as "V" is not a size reference.
+ */
+export function tallestLineHeight(lines: OcrLine[]): number {
+  let max = 0
+  for (const line of lines) {
+    // The reference has to be real text. Tesseract will happily return a 641px-tall
+    // "line" at zero confidence where it tried to read the cover artwork, and using that
+    // as the denominator shrank a genuine 223px title to 0.35 of "full size" — straight
+    // into the smallness penalty. A size reference must itself look like a word.
+    if (
+      line.confidence >= 20 &&
+      letterCount(line.text) >= 3 &&
+      wordiness(line.text) >= 0.5
+    ) {
+      max = Math.max(max, lineHeight(line))
+    }
+  }
+  return max
 }
 
 function mergeBBox(a: BBox, b: BBox): BBox {
@@ -215,26 +279,41 @@ function mergeBBox(a: BBox, b: BBox): BBox {
  * a title set across two or three lines is scored as a single phrase.
  */
 export function groupLines(lines: OcrLine[], imageHeight: number): Candidate[] {
+  const pageMax = tallestLineHeight(lines)
+
   const usable = lines
-    .map((l) => ({ ...l, text: cleanText(l.text) }))
-    .filter(
-      (l) =>
-        l.text.length > 0 &&
-        l.confidence >= 30 &&
-        // Three letters is the floor for a line to mean anything. Below it the line is
-        // cover ornament that OCR tried to read as text.
-        letterCount(l.text) >= 3 &&
-        !isNoise(l.text),
-    )
+    .map((l) => ({ ...l, text: cleanText(l.text), height: lineHeight(l) }))
+    .filter((l) => {
+      if (l.text.length === 0 || isNoise(l.text)) return false
+      // Display type is exactly what tesseract is least sure of: stylised, letter-spaced,
+      // often set over artwork. A flat 30% floor dropped the giant "ХОЛМС" off a perfectly
+      // clean photograph and left only the fine print to compete for the title. A line at
+      // least half the height of the tallest thing on the page is admitted on much lower
+      // confidence — but has to earn it on a *stricter* letter count and word-shape test,
+      // so the ornament noise those filters exist to remove stays out.
+      if (pageMax > 0 && l.height >= pageMax * 0.5) {
+        return l.confidence >= 20 && letterCount(l.text) >= 4 && wordiness(l.text) >= 0.5
+      }
+      // Three letters is the floor for a line to mean anything. Below it the line is
+      // cover ornament that OCR tried to read as text.
+      return l.confidence >= 30 && letterCount(l.text) >= 3
+    })
     .sort((a, b) => a.bbox.y0 - b.bbox.y0)
+
+  const centreX = (b: BBox) => (b.x0 + b.x1) / 2
 
   const groups: Candidate[] = []
   for (const line of usable) {
-    const h = lineHeight(line)
+    const h = line.height
     const previous = groups[groups.length - 1]
     const gap = previous ? line.bbox.y0 - previous.bbox.y1 : Infinity
-    const tallest = previous ? Math.max(h, previous.height) : h
-    const ratio = previous ? Math.min(h, previous.height) / tallest : 0
+    // Compared against the last line of the block, not the block's running average. A
+    // title that steps down in size — "АВАНТУРИТЕ НА" over "ШЕРЛОК" over "ХОЛМС" — is a
+    // real typographic pattern, and averaging the first two gives a height that matches
+    // neither the medium line above nor the giant line below.
+    const prevTail = previous ? lineHeight(previous.lines[previous.lines.length - 1]) : 0
+    const tallest = previous ? Math.max(h, prevTail) : h
+    const ratio = previous ? Math.min(h, prevTail) / tallest : 0
     // Same visual block: comparable glyph size, horizontally overlapping rather than in a
     // different column, and separated by well under one line of the larger text.
     //
@@ -246,16 +325,44 @@ export function groupLines(lines: OcrLine[], imageHeight: number): Candidate[] {
     const overlaps =
       previous !== undefined &&
       Math.min(line.bbox.x1, previous.bbox.x1) - Math.max(line.bbox.x0, previous.bbox.x0) > 0
+    const sameSize = ratio > 0.45 && gap < tallest * 0.6
+
+    // A display block often steps down hard in size — a medium "АВАНТУРИТЕ НА" over a
+    // giant "ШЕРЛОК" is one title, and the 0.45 ratio floor splits it in two. Crossing a
+    // size step is only safe when the type is genuinely display-sized, the lines are
+    // centred on one another, and the leading is tighter than the *smaller* line's own
+    // height — the gap down to an author line is never that tight.
+    const widest = previous
+      ? Math.max(previous.bbox.x1 - previous.bbox.x0, line.bbox.x1 - line.bbox.x0)
+      : 0
+    const centred =
+      previous !== undefined && Math.abs(centreX(line.bbox) - centreX(previous.bbox)) < widest * 0.25
+    const displayBlock =
+      previous !== undefined &&
+      ratio > 0.2 &&
+      pageMax > 0 &&
+      Math.max(h, prevTail) >= pageMax * 0.45 &&
+      // Stops a block "walking" down from display type to body text one step at a time.
+      h >= previous.height * 0.25 &&
+      gap < Math.min(h, prevTail) * 0.6 &&
+      centred
+
     const sameBlock =
-      previous !== undefined && ratio > 0.45 && gap < tallest * 0.6 && gap > -tallest && overlaps
+      previous !== undefined && overlaps && gap > -tallest && (sameSize || displayBlock)
 
     if (sameBlock && previous) {
       previous.text = `${previous.text} ${line.text}`
-      previous.height = (previous.height + h) / 2
+      // Median of the block's lines. The mean understated a stepped title; the max
+      // overstated an over-merged one, and a block that had swallowed a neighbour was
+      // then scored as though every line in it were giant — "TO KI ockin 1Qbird od A".
+      // The median gives the stepped case the right answer and lets a bad merge collapse
+      // back towards the smaller lines that dominate it.
+      previous.lines.push(line)
+      const blockHeights = previous.lines.map(lineHeight).sort((a, b) => a - b)
+      previous.height = blockHeights[Math.floor(blockHeights.length / 2)]
       previous.confidence = (previous.confidence + line.confidence) / 2
       previous.bbox = mergeBBox(previous.bbox, line.bbox)
       previous.centreY = (previous.bbox.y0 + previous.bbox.y1) / 2 / imageHeight
-      previous.lines.push(line)
     } else {
       groups.push({
         text: line.text,
@@ -294,25 +401,43 @@ interface Scored {
   score: number
 }
 
-function scoreTitles(candidates: Candidate[]): Scored[] {
-  const maxHeight = Math.max(...candidates.map((c) => c.height), 1)
+function scoreTitles(candidates: Candidate[], pageMaxHeight = 0): Scored[] {
+  // Measured against the tallest text the pass *read*, not the tallest that survived
+  // filtering. That distinction is the whole bug: when both title lines were dropped, a
+  // tiny translator credit became "the largest text on the cover" by default.
+  const maxHeight = Math.max(pageMaxHeight, ...candidates.map((c) => c.height), 1)
   return candidates
     .map((candidate) => {
+      const rel = candidate.height / maxHeight
       const words = candidate.text.split(/\s+/).length
       let score = 0
       // Dominant signal: the title is the biggest text on almost every cover.
-      score += (candidate.height / maxHeight) * 0.5
+      score += rel * 0.5
+      // Smallness is disqualifying, and nothing else here can pay for it. A line at a
+      // tenth of the cover's largest glyph is a credit line, a strapline or an imprint —
+      // "Превод: Ѓургица Илиева Нацкова" is all three at once, and it beat two title
+      // lines set eight times its size. Every other positive term sums to 0.72, so this
+      // penalty puts such a line permanently out of reach.
+      if (rel < 0.55) score -= (0.55 - rel) * 1.2
       // Upper 60% of the cover.
       score += candidate.centreY <= 0.6 ? 0.15 * (1 - candidate.centreY / 0.6) + 0.05 : 0
+      // Flat: a one-word title ("Dune", "Beloved") is as legitimate as a four-word one,
+      // and scaling this by length measurably cost those. Preferring the fuller reading of
+      // the *same* title is handled in `hypotheses` instead, where it belongs.
       score += words >= 1 && words <= 10 ? 0.12 : 0
       score += letterRatio(candidate.text) * 0.1
       // Decisive against OCR noise: large decorative marks read as "VU" or "ZR" score
       // highly on height and would otherwise take the title slot.
       score += (wordiness(candidate.text) - 0.5) * 0.4
-      score += (candidate.confidence / 100) * 0.13
+      // Trimmed from 0.13: display type is legitimately low-confidence and the filter now
+      // admits it, so confidence must not quietly undo that.
+      score += (candidate.confidence / 100) * 0.10
       // A "by …" line is an author line, never a title.
       if (candidate.hasByPrefix) score -= 0.5
-      if (looksLikeName(candidate.text) > 0.75) score -= 0.12
+      // A line shaped like a personal name is usually the author, even when it is the
+      // biggest thing on the cover. At 0.12 this was too weak to stop "Артур Конан Дојл"
+      // taking the title slot from "Скарлетна" on a real cover.
+      if (looksLikeName(candidate.text) > 0.75) score -= 0.25
       return { candidate, score }
     })
     .sort((a, b) => b.score - a.score)
@@ -391,11 +516,21 @@ export function passQuality(lines: OcrLine[]): number {
   return weight === 0 ? 0 : Math.min(1, good / weight)
 }
 
-export function hypothesesForLines(lines: OcrLine[], imageHeight: number): Hypothesis[] {
+export function hypothesesForLines(
+  lines: OcrLine[],
+  imageHeight: number,
+  coverMaxHeight = 0,
+): Hypothesis[] {
+  // The size reference is the tallest text found anywhere on the cover, not just in this
+  // pass. Using the pass's own maximum was the last piece of the laundering: a pass that
+  // read nothing but the author's name believed that name was the biggest text on the
+  // cover, so it escaped both the smallness penalty and the reach brake and took the
+  // title role — which is exactly how "Артур Конан Дојл" became a title.
+  const pageMax = Math.max(coverMaxHeight, tallestLineHeight(lines))
   const candidates = groupLines(lines, imageHeight || 1)
   if (candidates.length === 0) return []
 
-  const titleScores = scoreTitles(candidates)
+  const titleScores = scoreTitles(candidates, pageMax)
   const authorScores = scoreAuthors(candidates, undefined)
   const titleRank = normaliseScores(titleScores)
   const authorRank = normaliseScores(authorScores)
@@ -403,19 +538,42 @@ export function hypothesesForLines(lines: OcrLine[], imageHeight: number): Hypot
   const topTitles = titleScores.slice(0, MAX_ROLE_CANDIDATES).map((s) => s.candidate)
   const topAuthors = authorScores.slice(0, MAX_ROLE_CANDIDATES).map((s) => s.candidate)
 
+  /**
+   * An absolute brake on the title role, applied *after* the per-pass normalisation.
+   *
+   * `normaliseScores` rescales each pass's candidates to 0–1, so whatever ranks first in a
+   * pass always scores 1 — even when that pass dropped both title lines and the best thing
+   * left is a translator credit. Everything `scoreTitles` knows about size is laundered
+   * away at that point. This is what survives it: whatever else is true, a line a tenth the
+   * height of the cover's largest is not the title.
+   */
+  const reach = (c: Candidate) =>
+    pageMax <= 0 ? 1 : 0.35 + 0.65 * Math.min(1, c.height / (pageMax * 0.6))
+
+  /**
+   * The same problem for name-shaped lines. The penalty inside `scoreTitles` is erased
+   * whenever a pass holds only one usable candidate — it is rescaled to 1 regardless — so
+   * on a cover where one pass read nothing but "Артур Конан Дојл", the author's name won
+   * the title role outright. An absolute factor is the only thing that survives.
+   */
+  const notAName = (c: Candidate) => (looksLikeName(c.text) > 0.75 ? 0.65 : 1)
+  const titleWeight = (c: Candidate) => reach(c) * notAName(c)
+
   const out: Hypothesis[] = []
   for (const title of topTitles) {
     // Title with no author at all: the honest reading of a cover that only shows one.
     out.push({
       title: tidyTitle(title.text),
       author: '',
-      score: (titleRank.get(title) ?? 0) * 0.6,
+      score: (titleRank.get(title) ?? 0) * 0.6 * titleWeight(title),
       reason: describe(title, candidates),
     })
 
     for (const author of topAuthors) {
       if (author === title) continue
-      let score = (titleRank.get(title) ?? 0) * 0.55 + (authorRank.get(author) ?? 0) * 0.45
+      let score =
+        (titleRank.get(title) ?? 0) * 0.55 * titleWeight(title) +
+        (authorRank.get(author) ?? 0) * 0.45
 
       // Consistency bonuses: a real cover sets the title larger than the author, the
       // author reads like a name and the title does not.
@@ -466,19 +624,35 @@ export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
   const evidence = result as OcrEvidence
   const passes =
     evidence.passes?.length > 0
-      ? evidence.passes.map((p) => ({ lines: p.lines, quality: passQuality(p.lines) }))
-      : [{ lines: result.lines, quality: 1 }]
+      ? evidence.passes.map((p) => ({
+          lines: p.lines,
+          quality: passQuality(p.lines),
+          maxHeight: tallestLineHeight(p.lines),
+        }))
+      : [{ lines: result.lines, quality: 1, maxHeight: tallestLineHeight(result.lines) }]
+
+  // The tallest text any pass managed to read. `passQuality` measures word-shape only and
+  // is completely size-blind, so a pass that read nothing but the fine print scored near 1
+  // and was given the louder vote over the pass that actually found the title. Every pass
+  // runs on the same prepared canvas at the same dimensions, so glyph heights are directly
+  // comparable between them — positions are not, which is why this is the only cross-pass
+  // geometry used.
+  const coverMax = Math.max(1, ...passes.map((p) => p.maxHeight))
 
   const pooled = new Map<string, Hypothesis & { votes: number }>()
   for (const pass of passes) {
-    for (const h of hypothesesForLines(pass.lines, result.height)) {
+    for (const h of hypothesesForLines(pass.lines, result.height, coverMax)) {
       const key = `${normalise(h.title)}|${normalise(h.author)}`
       if (!h.title && !h.author) continue
       // A pass that produced mostly rubbish should not get an equal vote. Without this,
       // adding passes made the offline reading *worse*: the sparse-text pass on a heavily
       // illustrated cover emits dozens of fragments, and one of them always outscored the
       // real title found by a cleaner pass.
-      const score = h.score * (0.55 + 0.45 * pass.quality)
+      // Gentler than the quality factor on purpose: a pass can legitimately miss the
+      // biggest line because it is genuinely unreadable, so reach modulates rather than
+      // dominates.
+      const passReach = Math.min(1, pass.maxHeight / coverMax)
+      const score = h.score * (0.55 + 0.45 * pass.quality) * (0.72 + 0.28 * passReach)
       const existing = pooled.get(key)
       if (existing) {
         existing.votes++
@@ -489,16 +663,30 @@ export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
     }
   }
 
-  return [...pooled.values()]
+  const all = [...pooled.values()]
+  return all
     .map((h) => ({
       title: h.title,
       author: h.author,
       authorConfidence: h.authorConfidence,
+      // One pass reads "Шерло", another reads "Авантурите на Шерлок" — the same title,
+      // one of them more completely. Pooling took whichever scored higher, which was
+      // regularly the fragment. A reading that contains another reading is the fuller one.
+      completeness: all.some(
+        (other) =>
+          other !== h &&
+          other.title.length > 0 &&
+          normalise(h.title).length > normalise(other.title).length &&
+          normalise(h.title).includes(normalise(other.title)),
+      )
+        ? 0.08
+        : 0,
       // Agreement across independent passes is genuine corroboration, capped so that a
       // weak reading repeated six times cannot outrank a strong one.
       score: Math.min(1, h.score * (1 + Math.min(0.3, (h.votes - 1) * 0.1))),
       reason: h.reason,
     }))
+    .map(({ completeness, ...h }) => ({ ...h, score: Math.min(1, h.score + completeness) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_HYPOTHESES)
 }

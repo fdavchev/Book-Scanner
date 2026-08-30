@@ -73,7 +73,11 @@ export function isMostlyUpperCase(input: string): boolean {
 export function tidyTitle(input: string): string {
   const cleaned = input.replace(/\s+/g, ' ').trim()
   if (!isMostlyUpperCase(cleaned) || cleaned.length < 4) return cleaned
-  const small = new Set(['a', 'an', 'the', 'of', 'and', 'or', 'in', 'on', 'to', 'for', 'at'])
+  // English and Macedonian function words, which stay lowercase inside a title.
+  const small = new Set([
+    'a', 'an', 'the', 'of', 'and', 'or', 'in', 'on', 'to', 'for', 'at',
+    'на', 'и', 'во', 'од', 'за', 'со', 'ги', 'го', 'се', 'до', 'по', 'кон',
+  ])
   return cleaned
     .toLowerCase()
     .split(' ')
@@ -83,8 +87,32 @@ export function tidyTitle(input: string): string {
     .join(' ')
 }
 
-/** Vowels in both scripts the app reads. */
-const VOWELS = /[aeiouyаеиоу]/i
+/** Vowels in both scripts the app reads. ѐ and ѝ are the stressed forms of е and и. */
+const VOWELS = /[aeiouyаеиоуѐѝ]/i
+
+/** Any Cyrillic letter — the guard on the Macedonian-only rule below. */
+const CYRILLIC = /\p{Script=Cyrillic}/u
+
+/**
+ * The Macedonian syllable-carriers that are not vowel letters.
+ *
+ * Р is syllabic: "крв", "смрт", "прв", "црн", "врв" are ordinary words containing no vowel
+ * letter at all, and every one scored zero — which reaches `scoreTitles`, `scoreAuthors`,
+ * `passQuality`, `evidenceIsStrong` and `detect`'s title-quality factor, so a real
+ * Macedonian title was treated as artwork noise in five places at once. Ј carries a
+ * syllable in "мај", "крај", "змеј".
+ *
+ * Deliberately gated on the token being Cyrillic: admitting a bare R would let the English
+ * ornament noise this measure exists to reject — "ZR", "BR", "TR" read off cover art —
+ * straight back in.
+ */
+const CYRILLIC_SYLLABIC = /[рј]/i
+
+function isWordLike(token: string): boolean {
+  if (token.length < 2) return false
+  if (VOWELS.test(token)) return true
+  return CYRILLIC.test(token) && CYRILLIC_SYLLABIC.test(token)
+}
 
 /**
  * How much a string reads like real words, 0–1: the share of its tokens that contain a
@@ -98,8 +126,7 @@ const VOWELS = /[aeiouyаеиоу]/i
 export function wordiness(input: string): number {
   const parts = normalise(input).split(' ').filter((t) => t.length > 0)
   if (parts.length === 0) return 0
-  const wordLike = parts.filter((t) => t.length >= 2 && VOWELS.test(t)).length
-  return wordLike / parts.length
+  return parts.filter(isWordLike).length / parts.length
 }
 
 /** Total letters, ignoring spaces and punctuation. */

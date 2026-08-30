@@ -33,7 +33,7 @@ export function ScanScreen({
     const next = languages.includes(code)
       ? languages.filter((l) => l !== code)
       : [...languages, code]
-    void settings.update({ languages: (next.length === 0 ? ['eng'] : next) as LanguageCode[] })
+    void settings.update({ languages: (next.length === 0 ? ['mkd'] : next) as LanguageCode[] })
   }
 
   return (
@@ -48,8 +48,8 @@ export function ScanScreen({
         />
         {(
           [
-            ['eng', 'English'],
             ['mkd', 'Macedonian'],
+            ['eng', 'English'],
           ] as const
         ).map(([code, name]) => (
           <button
