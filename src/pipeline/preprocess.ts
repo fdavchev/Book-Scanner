@@ -10,6 +10,16 @@
  *  a 20-image batch at this size still fits inside a phone browser's memory ceiling. */
 export const OCR_LONG_EDGE = 1600
 
+/**
+ * A second, deliberately small rendering fed to OCR alongside the full-size one.
+ *
+ * Tesseract's recogniser expects modest glyph heights, and cover display type at 1600px
+ * is far outside that: the title of a Sherlock Holmes cover measured 233px per letter and
+ * came back as "ЛМ" and "Г ШИ". The same photograph at 700px reads "ШЕРЛОК" and
+ * "АРТУР КОНАН ДОЈЛ" cleanly. Big type needs a small image.
+ */
+export const SMALL_LONG_EDGE = 750
+
 /** Long edge of the stored cover thumbnail. */
 export const THUMB_LONG_EDGE = 400
 export const THUMB_QUALITY = 0.72
@@ -17,6 +27,10 @@ export const THUMB_QUALITY = 0.72
 export interface Prepared {
   /** The photo, EXIF-corrected and resized, otherwise untouched. */
   raw: ImageData
+  /** The same photo at ~750px — where oversized display type becomes legible. */
+  small: ImageData
+  /** The small rendering, grayscale and contrast-stretched. */
+  smallGray: ImageData
   /** Grayscale with uneven lighting divided out — for glare and shadow. */
   flattened: ImageData
   /** High-contrast binarised image — the first thing OCR is asked to read. */
@@ -263,6 +277,19 @@ export async function prepare(
     ctx.drawImage(bitmap, 0, 0, width, height)
     const raw = ctx.getImageData(0, 0, width, height)
 
+    const smallScale = scaleFor(bitmap.width, bitmap.height, SMALL_LONG_EDGE, maxUpscale)
+    const smallCanvas = createCanvas(
+      Math.max(1, Math.round(bitmap.width * smallScale)),
+      Math.max(1, Math.round(bitmap.height * smallScale)),
+    )
+    const smallCtx = context2d(smallCanvas)
+    smallCtx.imageSmoothingEnabled = true
+    smallCtx.imageSmoothingQuality = 'high'
+    smallCtx.drawImage(bitmap, 0, 0, smallCanvas.width, smallCanvas.height)
+    const small = smallCtx.getImageData(0, 0, smallCanvas.width, smallCanvas.height)
+
+    const smallGray = toGrayscale(small)
+
     const grayscale = toGrayscale(raw)
     const binarised = binarise(grayscale)
     const flattened = flattenIllumination(grayscale)
@@ -278,7 +305,7 @@ export async function prepare(
     thumbCtx.drawImage(bitmap, 0, 0, thumbCanvas.width, thumbCanvas.height)
     const thumbnail = await canvasToBlob(thumbCanvas, THUMB_QUALITY)
 
-    return { raw, binarised, grayscale, flattened, width, height, thumbnail }
+    return { raw, small, smallGray, binarised, grayscale, flattened, width, height, thumbnail }
   } finally {
     bitmap.close()
   }

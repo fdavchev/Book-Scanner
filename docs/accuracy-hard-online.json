@@ -5,7 +5,7 @@
     "titleExact": 16,
     "titleFuzzy": 16,
     "authorHit": 16,
-    "medianMs": 1607,
+    "medianMs": 1467,
     "medianThumbKb": 5
   },
   "rows": [
@@ -20,8 +20,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 95,
-      "ms": 1607,
+      "meanConfidence": 96,
+      "ms": 1274,
       "lineCount": 3,
       "thumbnailBytes": 4853
     },
@@ -37,7 +37,7 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 94,
-      "ms": 504,
+      "ms": 743,
       "lineCount": 3,
       "thumbnailBytes": 5781
     },
@@ -52,8 +52,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 93,
-      "ms": 1696,
+      "meanConfidence": 91,
+      "ms": 680,
       "lineCount": 2,
       "thumbnailBytes": 4230
     },
@@ -68,9 +68,9 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 89,
-      "meanConfidence": 96,
-      "ms": 1800,
-      "lineCount": 2,
+      "meanConfidence": 95,
+      "ms": 1507,
+      "lineCount": 3,
       "thumbnailBytes": 6354
     },
     {
@@ -83,9 +83,9 @@
       "titleFuzzy": false,
       "titleSimilarity": 0.54,
       "authorHit": true,
-      "confidence": 55,
+      "confidence": 67,
       "meanConfidence": 93,
-      "ms": 3503,
+      "ms": 3714,
       "lineCount": 3,
       "thumbnailBytes": 6306
     },
@@ -100,9 +100,9 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 84,
-      "meanConfidence": 62,
-      "ms": 1679,
-      "lineCount": 4,
+      "meanConfidence": 61,
+      "ms": 2899,
+      "lineCount": 6,
       "thumbnailBytes": 5735
     },
     {
@@ -117,7 +117,7 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 669,
+      "ms": 1467,
       "lineCount": 3,
       "thumbnailBytes": 3908
     },
@@ -125,16 +125,16 @@
       "id": "harsh-glare",
       "expectedTitle": "The Picture of Dorian Gray",
       "expectedAuthor": "Oscar Wilde",
-      "gotTitle": "The Pic! ire of Dorian Gray",
-      "gotAuthor": "Oscar 1",
+      "gotTitle": "The Pic' ure of Dorian Gray",
+      "gotAuthor": "Oscar",
       "titleExact": false,
       "titleFuzzy": true,
-      "titleSimilarity": 0.92,
+      "titleSimilarity": 0.96,
       "authorHit": false,
-      "confidence": 77,
-      "meanConfidence": 85,
-      "ms": 3724,
-      "lineCount": 4,
+      "confidence": 79,
+      "meanConfidence": 84,
+      "ms": 4716,
+      "lineCount": 5,
       "thumbnailBytes": 4609
     },
     {
@@ -149,8 +149,8 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 1040,
-      "lineCount": 3,
+      "ms": 1451,
+      "lineCount": 2,
       "thumbnailBytes": 4814
     },
     {
@@ -164,8 +164,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 83,
-      "meanConfidence": 94,
-      "ms": 1298,
+      "meanConfidence": 95,
+      "ms": 1847,
       "lineCount": 1,
       "thumbnailBytes": 3642
     },
@@ -181,7 +181,7 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 548,
+      "ms": 917,
       "lineCount": 2,
       "thumbnailBytes": 5060
     },
@@ -196,8 +196,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 94,
-      "ms": 759,
+      "meanConfidence": 95,
+      "ms": 844,
       "lineCount": 3,
       "thumbnailBytes": 3493
     },
@@ -213,7 +213,7 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 773,
+      "ms": 760,
       "lineCount": 3,
       "thumbnailBytes": 4741
     },
@@ -228,8 +228,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 95,
-      "ms": 542,
+      "meanConfidence": 96,
+      "ms": 1390,
       "lineCount": 3,
       "thumbnailBytes": 5387
     },
@@ -245,7 +245,7 @@
       "authorHit": true,
       "confidence": 76,
       "meanConfidence": 96,
-      "ms": 2518,
+      "ms": 2563,
       "lineCount": 2,
       "thumbnailBytes": 3649
     },
@@ -261,7 +261,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 93,
-      "ms": 2679,
+      "ms": 2458,
       "lineCount": 2,
       "thumbnailBytes": 3440
     },
@@ -277,8 +277,8 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 95,
-      "ms": 665,
-      "lineCount": 7,
+      "ms": 1041,
+      "lineCount": 9,
       "thumbnailBytes": 6605
     },
     {
@@ -292,9 +292,9 @@
       "titleSimilarity": 0,
       "authorHit": false,
       "confidence": 0,
-      "meanConfidence": 43,
-      "ms": 5381,
-      "lineCount": 1,
+      "meanConfidence": 39,
+      "ms": 7815,
+      "lineCount": 2,
       "thumbnailBytes": 5895
     }
   ]

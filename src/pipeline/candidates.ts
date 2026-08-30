@@ -593,6 +593,27 @@ export function hypothesesForLines(
     }
   }
 
+  // A title set on two separate lines that the grouping stage could not join — different
+  // sizes, a graphic between them — still reads as one title to a person. The two largest
+  // title candidates, in the order they appear down the cover, are offered as a combined
+  // reading: on "АВАНТУРИТЕ НА / ШЕРЛОК / ХОЛМС" it is the only way to get more than one
+  // word. It is deliberately scored below the single-line readings, so it surfaces as an
+  // alternative the user can tap rather than as the answer.
+  const [firstTitle, secondTitle] = topTitles
+    .slice(0, 2)
+    .slice()
+    .sort((a, b) => a.bbox.y0 - b.bbox.y0)
+  if (firstTitle && secondTitle && firstTitle !== secondTitle) {
+    const joined = `${firstTitle.text} ${secondTitle.text}`
+    out.push({
+      title: tidyTitle(joined),
+      author: '',
+      score:
+        Math.min(titleRank.get(firstTitle) ?? 0, titleRank.get(secondTitle) ?? 0) * 0.5,
+      reason: 'two lines of the cover read as one title',
+    })
+  }
+
   // Author-only: some covers show a legible name and an illegible title, and the name
   // alone is enough for the catalogue to work with.
   for (const author of topAuthors.slice(0, 2)) {
@@ -628,8 +649,18 @@ export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
           lines: p.lines,
           quality: passQuality(p.lines),
           maxHeight: tallestLineHeight(p.lines),
+          // Passes no longer share a scale — one of them reads a deliberately shrunken
+          // copy — so sizes are compared as a fraction of each pass's own image.
+          imageHeight: Math.max(1, p.height),
         }))
-      : [{ lines: result.lines, quality: 1, maxHeight: tallestLineHeight(result.lines) }]
+      : [
+          {
+            lines: result.lines,
+            quality: 1,
+            maxHeight: tallestLineHeight(result.lines),
+            imageHeight: Math.max(1, result.height),
+          },
+        ]
 
   // The tallest text any pass managed to read. `passQuality` measures word-shape only and
   // is completely size-blind, so a pass that read nothing but the fine print scored near 1
@@ -637,11 +668,18 @@ export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
   // runs on the same prepared canvas at the same dimensions, so glyph heights are directly
   // comparable between them — positions are not, which is why this is the only cross-pass
   // geometry used.
-  const coverMax = Math.max(1, ...passes.map((p) => p.maxHeight))
+  // The tallest text seen anywhere, as a fraction of image height so it means the same
+  // thing in every pass.
+  const coverMaxFraction = Math.max(
+    0.0001,
+    ...passes.map((p) => p.maxHeight / p.imageHeight),
+  )
 
   const pooled = new Map<string, Hypothesis & { votes: number }>()
   for (const pass of passes) {
-    for (const h of hypothesesForLines(pass.lines, result.height, coverMax)) {
+    // Converted back into this pass's own pixels before it is used as a denominator.
+    const coverMaxHere = coverMaxFraction * pass.imageHeight
+    for (const h of hypothesesForLines(pass.lines, pass.imageHeight, coverMaxHere)) {
       const key = `${normalise(h.title)}|${normalise(h.author)}`
       if (!h.title && !h.author) continue
       // A pass that produced mostly rubbish should not get an equal vote. Without this,
@@ -651,7 +689,7 @@ export function hypotheses(result: OcrResult | OcrEvidence): Hypothesis[] {
       // Gentler than the quality factor on purpose: a pass can legitimately miss the
       // biggest line because it is genuinely unreadable, so reach modulates rather than
       // dominates.
-      const passReach = Math.min(1, pass.maxHeight / coverMax)
+      const passReach = Math.min(1, pass.maxHeight / pass.imageHeight / coverMaxFraction)
       const score = h.score * (0.55 + 0.45 * pass.quality) * (0.72 + 0.28 * passReach)
       const existing = pooled.get(key)
       if (existing) {

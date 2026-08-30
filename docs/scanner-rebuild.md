@@ -307,3 +307,47 @@ English artwork set and one on the clean set, and gained two on the difficult se
 answers fell to zero on every set except the clean one. For a shelf of Macedonian books
 photographed with a phone, that is the right side of the trade; if this were mainly an
 English low-resolution library, it would not be.
+
+
+## Postscript: the covers were being read at the wrong size
+
+The Macedonian covers still read badly after all of the above, and the reason turned out to
+have nothing to do with scoring.
+
+Tesseract's recogniser expects modest glyph heights. On these photographs the title letters
+measured **233 pixels each** at the pipeline's 1600px working size — far outside what the
+engine handles. Probing the same photograph at several resolutions made it obvious:
+
+| Long edge | What it read |
+|---|---|
+| 1600 (the default) | `ЛМ`, `Г ШИ`, `х. .` |
+| 1000 | `ШЕРЛОК` [68], `АЖАНТУРИТЕ` [39] |
+| **700** | **`ШЕРЛОК` [70], `АРТУР КОНАН ДО` [70]** |
+
+Big type needs a *small* image. The schedule now renders a second, deliberately shrunken
+grayscale copy at 750px and reads it twice — once with automatic segmentation, once with
+sparse — and those two passes run always, because a cover whose title is unreadable at full
+size gives nothing to exit early on.
+
+Two mistakes were made and fixed along the way. The first version compared glyph heights in
+**pixels** across passes, which stopped meaning anything the moment one pass read a
+different-sized image; sizes are now measured as a fraction of each pass's own image
+height. The second used the plain shrunken image, where a probe showed the *grayscale*
+shrunken image is what actually reads: `СКАРЛЕТНА` [86] and `АРТУР КОНАН ДОЈЛ` [46] on a
+cover that had produced nothing but the translator's name.
+
+| Cover | Before this change | After |
+|---|---|---|
+| Авантурите | `"шерло"` / `"Артур Кона Ов,"` | `"Шерлок"` / **`"Артур Конан до"`** |
+| Скарлетна | `"Скарлетна"` / `"Уарлур Конан Дојл:"` | `"Скарлетна"` / **`"Артур Конан Дој"`** |
+
+Where a title is set on two lines the grouping cannot join, the two largest lines are now
+also offered *combined* as an alternative — "Авантурите. Н Шерло" — so the full title is one
+tap away rather than unreachable.
+
+**What is still not achievable on these two photographs.** The word `ХОЛМС` on the first
+cover is printed across a dark silhouette and is not recovered by any pass at any size or
+segmentation mode; `СТУДИЈА` on the second is read only as fragments (`ИЈА`, `СТУЛИЈА`).
+The full titles "Авантурите на Шерлок Холмс" and "Шерлок Холмс: Скарлетна студија" are
+therefore out of reach of this OCR engine on these images — not a scoring problem, an
+absent-input problem.

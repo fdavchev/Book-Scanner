@@ -5,7 +5,7 @@
     "titleExact": 14,
     "titleFuzzy": 14,
     "authorHit": 15,
-    "medianMs": 248,
+    "medianMs": 530,
     "medianThumbKb": 6
   },
   "rows": [
@@ -19,9 +19,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 73,
+      "confidence": 74,
       "meanConfidence": 96,
-      "ms": 328,
+      "ms": 530,
       "lineCount": 3,
       "thumbnailBytes": 5956
     },
@@ -35,10 +35,10 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 94,
-      "meanConfidence": 95,
-      "ms": 203,
-      "lineCount": 4,
+      "confidence": 96,
+      "meanConfidence": 96,
+      "ms": 371,
+      "lineCount": 5,
       "thumbnailBytes": 5555
     },
     {
@@ -51,9 +51,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 83,
+      "confidence": 90,
       "meanConfidence": 95,
-      "ms": 271,
+      "ms": 537,
       "lineCount": 4,
       "thumbnailBytes": 5784
     },
@@ -68,9 +68,9 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 96,
-      "meanConfidence": 93,
-      "ms": 244,
-      "lineCount": 4,
+      "meanConfidence": 96,
+      "ms": 392,
+      "lineCount": 3,
       "thumbnailBytes": 5484
     },
     {
@@ -85,7 +85,7 @@
       "authorHit": true,
       "confidence": 76,
       "meanConfidence": 96,
-      "ms": 233,
+      "ms": 402,
       "lineCount": 3,
       "thumbnailBytes": 5178
     },
@@ -99,9 +99,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 96,
+      "confidence": 76,
       "meanConfidence": 96,
-      "ms": 248,
+      "ms": 376,
       "lineCount": 5,
       "thumbnailBytes": 6899
     },
@@ -117,7 +117,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 298,
+      "ms": 714,
       "lineCount": 4,
       "thumbnailBytes": 5759
     },
@@ -132,8 +132,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 96,
-      "meanConfidence": 95,
-      "ms": 199,
+      "meanConfidence": 96,
+      "ms": 457,
       "lineCount": 4,
       "thumbnailBytes": 5659
     },
@@ -147,9 +147,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 93,
+      "confidence": 96,
       "meanConfidence": 96,
-      "ms": 287,
+      "ms": 771,
       "lineCount": 5,
       "thumbnailBytes": 6862
     },
@@ -165,7 +165,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 1136,
+      "ms": 1674,
       "lineCount": 3,
       "thumbnailBytes": 5997
     },
@@ -179,10 +179,10 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 96,
+      "confidence": 76,
       "meanConfidence": 95,
-      "ms": 201,
-      "lineCount": 4,
+      "ms": 457,
+      "lineCount": 5,
       "thumbnailBytes": 5071
     },
     {
@@ -195,9 +195,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 87,
+      "confidence": 92,
       "meanConfidence": 96,
-      "ms": 262,
+      "ms": 668,
       "lineCount": 4,
       "thumbnailBytes": 5441
     },
@@ -213,7 +213,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 226,
+      "ms": 530,
       "lineCount": 5,
       "thumbnailBytes": 6206
     },
@@ -227,9 +227,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 94,
-      "meanConfidence": 94,
-      "ms": 291,
+      "confidence": 96,
+      "meanConfidence": 95,
+      "ms": 698,
       "lineCount": 4,
       "thumbnailBytes": 6173
     },
@@ -243,9 +243,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 82,
+      "confidence": 74,
       "meanConfidence": 94,
-      "ms": 200,
+      "ms": 438,
       "lineCount": 3,
       "thumbnailBytes": 6275
     }

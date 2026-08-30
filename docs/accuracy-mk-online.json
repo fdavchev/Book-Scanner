@@ -5,7 +5,7 @@
     "titleExact": 0,
     "titleFuzzy": 0,
     "authorHit": 2,
-    "medianMs": 8936,
+    "medianMs": 8752,
     "medianThumbKb": 22
   },
   "rows": [
@@ -13,16 +13,16 @@
       "id": "sherlock-adventures",
       "expectedTitle": "Авантурите на Шерлок Холмс",
       "expectedAuthor": "Артур Конан Дојл",
-      "gotTitle": "\"шерло",
-      "gotAuthor": "Артур Кона Ов,",
+      "gotTitle": "Шерлок",
+      "gotAuthor": "Артур Конан до",
       "titleExact": false,
       "titleFuzzy": false,
-      "titleSimilarity": 0.19,
+      "titleSimilarity": 0.23,
       "authorHit": true,
-      "confidence": 31,
-      "meanConfidence": 32,
-      "ms": 8936,
-      "lineCount": 36,
+      "confidence": 41,
+      "meanConfidence": 33,
+      "ms": 8752,
+      "lineCount": 40,
       "thumbnailBytes": 22783
     },
     {
@@ -30,15 +30,15 @@
       "expectedTitle": "Скарлетна студија",
       "expectedAuthor": "Артур Конан Дојл",
       "gotTitle": "Скарлетна",
-      "gotAuthor": "Уарлур Конан Дојл:",
+      "gotAuthor": "Артур Конан Дој",
       "titleExact": false,
       "titleFuzzy": false,
       "titleSimilarity": 0.53,
       "authorHit": true,
-      "confidence": 37,
-      "meanConfidence": 38,
-      "ms": 6175,
-      "lineCount": 27,
+      "confidence": 39,
+      "meanConfidence": 44,
+      "ms": 5060,
+      "lineCount": 15,
       "thumbnailBytes": 22641
     }
   ]

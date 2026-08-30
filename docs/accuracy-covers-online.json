@@ -5,7 +5,7 @@
     "titleExact": 14,
     "titleFuzzy": 14,
     "authorHit": 14,
-    "medianMs": 3302,
+    "medianMs": 3701,
     "medianThumbKb": 6
   },
   "rows": [
@@ -19,9 +19,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 73,
+      "confidence": 74,
       "meanConfidence": 96,
-      "ms": 4491,
+      "ms": 4317,
       "lineCount": 3,
       "thumbnailBytes": 5956
     },
@@ -36,9 +36,9 @@
       "titleSimilarity": 1,
       "authorHit": false,
       "confidence": 45,
-      "meanConfidence": 95,
-      "ms": 3467,
-      "lineCount": 4,
+      "meanConfidence": 96,
+      "ms": 3087,
+      "lineCount": 5,
       "thumbnailBytes": 5555
     },
     {
@@ -53,7 +53,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 95,
-      "ms": 3302,
+      "ms": 4327,
       "lineCount": 4,
       "thumbnailBytes": 5784
     },
@@ -68,9 +68,9 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 96,
-      "meanConfidence": 93,
-      "ms": 3459,
-      "lineCount": 4,
+      "meanConfidence": 96,
+      "ms": 3915,
+      "lineCount": 3,
       "thumbnailBytes": 5484
     },
     {
@@ -85,7 +85,7 @@
       "authorHit": true,
       "confidence": 76,
       "meanConfidence": 96,
-      "ms": 2936,
+      "ms": 3094,
       "lineCount": 3,
       "thumbnailBytes": 5178
     },
@@ -99,9 +99,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 96,
+      "confidence": 76,
       "meanConfidence": 96,
-      "ms": 3151,
+      "ms": 2678,
       "lineCount": 5,
       "thumbnailBytes": 6899
     },
@@ -117,7 +117,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 96,
-      "ms": 3558,
+      "ms": 3804,
       "lineCount": 4,
       "thumbnailBytes": 5759
     },
@@ -132,8 +132,8 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 96,
-      "meanConfidence": 95,
-      "ms": 3178,
+      "meanConfidence": 96,
+      "ms": 3303,
       "lineCount": 4,
       "thumbnailBytes": 5659
     },
@@ -147,9 +147,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 93,
+      "confidence": 96,
       "meanConfidence": 96,
-      "ms": 3164,
+      "ms": 3701,
       "lineCount": 5,
       "thumbnailBytes": 6862
     },
@@ -165,7 +165,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 2951,
+      "ms": 3280,
       "lineCount": 3,
       "thumbnailBytes": 5997
     },
@@ -179,10 +179,10 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 96,
+      "confidence": 76,
       "meanConfidence": 95,
-      "ms": 3547,
-      "lineCount": 4,
+      "ms": 4185,
+      "lineCount": 5,
       "thumbnailBytes": 5071
     },
     {
@@ -197,7 +197,7 @@
       "authorHit": true,
       "confidence": 45,
       "meanConfidence": 96,
-      "ms": 4290,
+      "ms": 3753,
       "lineCount": 4,
       "thumbnailBytes": 5441
     },
@@ -213,7 +213,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 95,
-      "ms": 3618,
+      "ms": 3387,
       "lineCount": 5,
       "thumbnailBytes": 6206
     },
@@ -227,9 +227,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 94,
-      "meanConfidence": 94,
-      "ms": 3244,
+      "confidence": 96,
+      "meanConfidence": 95,
+      "ms": 3743,
       "lineCount": 4,
       "thumbnailBytes": 6173
     },
@@ -243,9 +243,9 @@
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 82,
+      "confidence": 74,
       "meanConfidence": 94,
-      "ms": 2834,
+      "ms": 3283,
       "lineCount": 3,
       "thumbnailBytes": 6275
     }

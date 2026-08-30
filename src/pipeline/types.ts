@@ -35,8 +35,11 @@ export interface OcrResult {
 
 /** One (variant × page-segmentation mode) reading of the image. */
 export interface OcrPass {
-  variant: 'raw' | 'grayscale' | 'binarised' | 'flattened'
+  variant: 'raw' | 'small' | 'smallGray' | 'grayscale' | 'binarised' | 'flattened'
   psm: string
+  /** The pixel size of the image this pass read — passes are not all the same scale. */
+  width: number
+  height: number
   lines: OcrLine[]
   meanConfidence: number
   ms: number

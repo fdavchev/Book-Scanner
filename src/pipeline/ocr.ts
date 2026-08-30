@@ -200,7 +200,7 @@ export class TesseractPool implements OcrEngine {
 
 /** One (image variant × page-segmentation mode) reading to attempt. */
 export interface PassSpec {
-  variant: 'raw' | 'grayscale' | 'binarised' | 'flattened'
+  variant: 'raw' | 'small' | 'smallGray' | 'grayscale' | 'binarised' | 'flattened'
   psm: PSM
   /** Why this pass exists, for the diagnostics. */
   why: string
@@ -227,6 +227,8 @@ export interface PassSpec {
  */
 export const PASS_SCHEDULE: PassSpec[] = [
   { variant: 'raw', psm: PSM.AUTO, why: 'general' },
+  { variant: 'smallGray', psm: PSM.AUTO, why: 'oversized display type' },
+  { variant: 'smallGray', psm: PSM.SPARSE_TEXT_OSD, why: 'oversized type, scattered' },
   { variant: 'grayscale', psm: PSM.SPARSE_TEXT, why: 'scattered display type' },
   { variant: 'flattened', psm: PSM.AUTO, why: 'glare or uneven lighting' },
   { variant: 'raw', psm: PSM.SINGLE_BLOCK, why: 'stacked title block' },
@@ -238,6 +240,7 @@ export const PASS_SCHEDULE: PassSpec[] = [
 /** A spine is read differently: sparse text, rotated type, very little of it. */
 export const SPINE_SCHEDULE: PassSpec[] = [
   { variant: 'raw', psm: PSM.SPARSE_TEXT, why: 'spine' },
+  { variant: 'smallGray', psm: PSM.SPARSE_TEXT, why: 'spine, oversized type' },
   { variant: 'grayscale', psm: PSM.SPARSE_TEXT, why: 'spine, low contrast' },
   { variant: 'binarised', psm: PSM.SINGLE_BLOCK, why: 'spine, last resort' },
 ]
@@ -357,6 +360,8 @@ export async function readImage(
   engine: OcrEngine,
   prepared: {
     raw: ImageData
+    small: ImageData
+    smallGray: ImageData
     grayscale: ImageData
     binarised: ImageData
     flattened: ImageData
@@ -372,21 +377,23 @@ export async function readImage(
     options.maxPasses ?? Infinity,
   )
 
-  // A small image is a hard image: at 300x500 the title is barely 80px tall and one pass
-  // is rarely enough, while a phone photo of a physical book is usually read correctly on
-  // the first attempt. Resolution is the cheapest available predictor of difficulty, so it
-  // sets how many passes must run before an early exit is even considered.
-  const megapixels = (prepared.width * prepared.height) / 1e6
-  const minPasses = options.minPasses ?? (megapixels < 1.2 ? 3 : 1)
+  // Three at minimum. Passes two and three read a deliberately shrunken copy, and
+  // oversized display type is unreadable at full size — a cover whose title measured 233px
+  // per letter returned "ЛМ" and "Г ШИ" until it was shrunk, then read "ШЕРЛОК". They are
+  // also the two cheapest passes in the schedule, so this costs little.
+  const minPasses = options.minPasses ?? 3
 
   const passes: OcrPass[] = []
   for (const [index, spec] of schedule.entries()) {
     if (signal?.aborted) break
     const started = Date.now()
-    const result = await engine.recognise(prepared[spec.variant], spec.psm)
+    const image = prepared[spec.variant]
+    const result = await engine.recognise(image, spec.psm)
     passes.push({
       variant: spec.variant,
       psm: String(spec.psm),
+      width: image.width,
+      height: image.height,
       lines: result.lines,
       meanConfidence: result.meanConfidence,
       ms: Date.now() - started,

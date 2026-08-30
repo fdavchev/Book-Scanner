@@ -122,6 +122,60 @@
             })),
           }
         },
+        async smallProbe(base64) {
+          const blob = base64ToBlob(base64, 'image/jpeg')
+          const prepared = await prepare(blob)
+          const out = []
+          for (const variant of ['small', 'smallGray']) {
+            for (const psm of [3, 6, 11, 12]) {
+              const ocr = await pool.recognise(prepared[variant], psm, 300)
+              out.push({
+                variant,
+                psm,
+                size: [prepared[variant].width, prepared[variant].height],
+                lines: ocr.lines
+                  .slice()
+                  .sort((a, b) => b.confidence - a.confidence)
+                  .slice(0, 5)
+                  .map((l) => l.text + ' [' + Math.round(l.confidence) + ']'),
+              })
+            }
+          }
+          return out
+        },
+        async passes(base64) {
+          const blob = base64ToBlob(base64, 'image/jpeg')
+          const prepared = await prepare(blob)
+          const ocr = await readImage(pool, prepared)
+          return ocr.passes.map((p) => ({
+            variant: p.variant,
+            psm: p.psm,
+            size: [p.width, p.height],
+            lines: p.lines
+              .slice()
+              .sort((a, b) => b.confidence - a.confidence)
+              .slice(0, 8)
+              .map((l) => l.text + ' [' + Math.round(l.confidence) + ']'),
+          }))
+        },
+        async sizeProbe(base64, longEdges) {
+          const blob = base64ToBlob(base64, 'image/jpeg')
+          const out = []
+          for (const longEdge of longEdges) {
+            const prepared = await prepare(blob, longEdge)
+            const ocr = await readImage(pool, prepared)
+            out.push({
+              longEdge,
+              size: [prepared.width, prepared.height],
+              lines: ocr.lines
+                .slice()
+                .sort((a, b) => b.confidence - a.confidence)
+                .slice(0, 10)
+                .map((l) => l.text + ' [' + Math.round(l.confidence) + ']'),
+            })
+          }
+          return out
+        },
         async dispose() {
           await pool?.terminate()
           pool = null
