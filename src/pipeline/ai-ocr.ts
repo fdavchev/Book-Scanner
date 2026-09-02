@@ -13,7 +13,7 @@
 import type { Detection, Hypothesis, OcrResult } from './types'
 
 /** One constant to change when a newer Flash model is worth moving to. */
-export const GEMINI_MODEL = 'gemini-2.5-flash'
+export const GEMINI_MODEL = 'gemini-3.6-flash'
 
 export const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 
