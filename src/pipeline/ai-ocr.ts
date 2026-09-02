@@ -15,6 +15,16 @@ import type { Detection, Hypothesis, OcrResult } from './types'
 /** One constant to change when a newer Flash model is worth moving to. */
 export const GEMINI_MODEL = 'gemini-3.6-flash'
 
+/**
+ * Tried, in order, if `GEMINI_MODEL` stops existing (Google retires versioned models
+ * periodically). Each entry here is a real network request on top of the first, so keep
+ * this short — it is a safety net for "the pinned model was retired", not a general retry
+ * mechanism. `gemini-flash-latest` is Google's floating alias: not meant for production,
+ * but reasonable as a last resort so the AI path recovers on its own instead of silently
+ * reverting to on-device reading forever until someone notices and edits this file.
+ */
+export const GEMINI_MODEL_FALLBACKS = ['gemini-flash-latest']
+
 export const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 /**
@@ -234,9 +244,22 @@ function classifyStatus(status: number, body: string): AiFailureKind {
   return 'server'
 }
 
+/**
+ * True only for "this model id does not exist / is no longer available" — Google's
+ * retirement message, as opposed to any other 404 (a typo in the endpoint, a routing
+ * problem, etc). Narrow on purpose: this is the one case worth silently retrying with a
+ * different model, and it should not swallow errors that mean something else.
+ */
+function isModelRetired(status: number, body: string): boolean {
+  if (status !== 404) return false
+  return /model|no longer available|not_found/i.test(body)
+}
+
 export interface GeminiOptions {
   apiKey: string
   model?: string
+  /** Overrides the built-in retirement fallback list. Exposed for tests. */
+  fallbackModels?: string[]
   fetcher?: Fetcher
   timeoutMs?: number
   endpoint?: string
@@ -251,11 +274,62 @@ export interface GeminiOptions {
 export function createGeminiClient({
   apiKey,
   model = GEMINI_MODEL,
+  fallbackModels = GEMINI_MODEL_FALLBACKS,
   fetcher = fetch,
   timeoutMs = AI_TIMEOUT_MS,
   endpoint = GEMINI_ENDPOINT,
 }: GeminiOptions): AiClient {
   if (!apiKey) throw new AiOcrError('no-key', 'No Gemini API key configured')
+
+  // The pinned model first, then whichever fallbacks aren't already that same model.
+  const models = [model, ...fallbackModels.filter((m) => m !== model)]
+
+  async function attempt(
+    currentModel: string,
+    body: unknown,
+    signal: AbortSignal,
+  ): Promise<AiReading> {
+    let response: Response
+    try {
+      response = await fetcher(`${endpoint}/${currentModel}:generateContent`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal,
+      })
+    } catch (err) {
+      const name = err instanceof Error ? err.name : ''
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        throw new AiOcrError('timeout', `Gemini did not answer within ${timeoutMs} ms`)
+      }
+      throw new AiOcrError('network', err instanceof Error ? err.message : String(err))
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      if (isModelRetired(response.status, text)) {
+        // A distinct, non-AiOcrError signal so the caller's loop can tell "try the next
+        // model" apart from every other failure, which should fall back to on-device
+        // reading immediately rather than spend a second request on it.
+        throw new ModelRetiredError(currentModel)
+      }
+      throw new AiOcrError(
+        classifyStatus(response.status, text),
+        `Gemini returned ${response.status}`,
+      )
+    }
+
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch {
+      throw new AiOcrError('malformed', 'Gemini returned a body that was not JSON')
+    }
+
+    const text = extractText(payload)
+    if (text === null) throw new AiOcrError('malformed', 'Gemini returned no text part')
+    return parseAiReading(text)
+  }
 
   return {
     async read(image, options = {}) {
@@ -282,46 +356,34 @@ export function createGeminiClient({
         },
       }
 
-      const timeout = AbortSignal.timeout(timeoutMs)
-      const signal = options.signal
-        ? AbortSignal.any([options.signal, timeout])
-        : timeout
-
-      let response: Response
-      try {
-        response = await fetcher(`${endpoint}/${model}:generateContent`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify(body),
-          signal,
-        })
-      } catch (err) {
-        const name = err instanceof Error ? err.name : ''
-        if (name === 'TimeoutError' || name === 'AbortError') {
-          throw new AiOcrError('timeout', `Gemini did not answer within ${timeoutMs} ms`)
+      let lastError: unknown
+      for (const currentModel of models) {
+        const timeout = AbortSignal.timeout(timeoutMs)
+        const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
+        try {
+          return await attempt(currentModel, body, signal)
+        } catch (err) {
+          if (err instanceof ModelRetiredError) {
+            lastError = new AiOcrError('server', `Gemini returned 404 for ${currentModel}`)
+            continue
+          }
+          throw err
         }
-        throw new AiOcrError('network', err instanceof Error ? err.message : String(err))
       }
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => '')
-        throw new AiOcrError(
-          classifyStatus(response.status, text),
-          `Gemini returned ${response.status}`,
-        )
-      }
-
-      let payload: unknown
-      try {
-        payload = await response.json()
-      } catch {
-        throw new AiOcrError('malformed', 'Gemini returned a body that was not JSON')
-      }
-
-      const text = extractText(payload)
-      if (text === null) throw new AiOcrError('malformed', 'Gemini returned no text part')
-      return parseAiReading(text)
+      // Every model in the list, including the fallback, is retired or unreachable.
+      throw lastError instanceof Error
+        ? lastError
+        : new AiOcrError('server', 'No configured Gemini model is available')
     },
+  }
+}
+
+/** Internal-only: signals "this model id doesn't exist", never seen outside this file. */
+class ModelRetiredError extends Error {
+  readonly model: string
+  constructor(model: string) {
+    super(`Model ${model} is retired or unavailable`)
+    this.model = model
   }
 }
 
