@@ -14,8 +14,8 @@ function detection(title: string, author = '', confidence = 70): Detection {
   }
 }
 
-function image(id: string, det: Detection): ScannedImage {
-  return { id, blob: new Blob(['x']), detection: det, ocrText: det.title }
+function image(id: string, det: Detection, reader: 'ocr' | 'ai' = 'ocr'): ScannedImage {
+  return { id, blob: new Blob(['x']), detection: det, ocrText: det.title, reader }
 }
 
 describe('detectionSimilarity', () => {

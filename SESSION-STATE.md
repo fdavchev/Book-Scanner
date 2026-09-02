@@ -11,7 +11,7 @@ marked "cut first" in the plan) was not attempted — the reasoning is in
 
 | | |
 |---|---|
-| Unit tests | **136 passing** (`npm test`) |
+| Unit tests | **184 passing** (`npm test`) |
 | End-to-end tests | **40 passing, 5 skipped** (`npm run test:e2e`) — Chromium, Pixel 7, iPhone 14/WebKit |
 | Typecheck / lint | clean (`npx tsc -b`, `npm run lint`) |
 | Title accuracy | **15/15** clean · **14/18** on the difficult set · **8/15** on low-res artwork |
@@ -91,3 +91,54 @@ which builds it, serves it from a subpath and scans a cover through it.
 - **Filip often cannot run the project himself.** Results go into `.md` files in this
   folder, and every claim is labelled *verified by test*, *verified by live run*, or
   *not verified*.
+
+## AI cover reading was added (2 September 2026)
+
+The app can now read covers with **Google Gemini Flash** instead of tesseract, because
+tesseract is weak on Macedonian Cyrillic display type. `DECISIONS.md` has the full
+reasoning; the short version:
+
+- `src/pipeline/ai-ocr.ts` — the Gemini client, prompt, structured-output schema, defensive
+  parsing and error classification. The client is injectable, so it is fully unit-tested
+  with no key and no network.
+- `src/pipeline/route.ts` — a pure function deciding AI or on-device from three inputs:
+  mode, key present, really online. Every combination is pinned by a test.
+- The user supplies **their own API key** in the new Settings screen. Nothing is bundled,
+  nothing is shared, there is no proxy.
+- **Every failure falls back to the device, per photo.** No key, offline, timeout, bad key,
+  quota, unreachable, unparseable reply — all of them.
+- The offline guarantee is intact: with no key, or with the pill off, or with no signal, the
+  app behaves exactly as it did before.
+
+### What is NOT verified
+
+**The AI path has never been run against a real Gemini API key.** No key was available.
+That means:
+
+- Every unit test passes against a *mocked* client, so the prompt, the parsing and all the
+  fallbacks are verified.
+- `npm run benchmark -- --hard --ai` is implemented and refuses cleanly without a key, but
+  **has not been run**, so there are no measured AI accuracy numbers for the Cyrillic set.
+  Do not quote any until it has.
+- The exact model id (`gemini-2.5-flash`, one constant at the top of `ai-ocr.ts`) and the
+  live request/response shape are written from the documented API, not from an observed
+  call.
+
+First thing to do with a key: `GEMINI_API_KEY=... npm run benchmark -- --hard --ai`, then
+compare against `docs/accuracy-hard-offline.md`.
+
+## The interface was redesigned (2 September 2026)
+
+A full pass over the UI, not a reskin:
+
+- **Light and dark themes with a real switch** — System / Light / Dark, in the top bar and
+  in Settings. Previously the app followed `prefers-color-scheme` with no way to override.
+- A sticky **top bar**, a fourth **Settings** tab, and a reworked bottom bar.
+- **Home** gains a hero and read/to-read/total counters.
+- **My Books** gains a list-or-covers layout switch.
+- **Review** cards say which reader read each cover, and whether the catalogue corroborated
+  it — two separate facts.
+- Rebuilt token system, focus rings, loading skeletons, and `prefers-reduced-motion`.
+
+Every `data-testid`, ARIA role name and form label the end-to-end tests rely on was kept
+deliberately, so the redesign did not require rewriting the test suite.

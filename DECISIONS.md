@@ -170,3 +170,83 @@ see: a photo of a physical book is thousands of pixels wide.
 Rather than quietly dropping the inconvenient set or claiming the flattering number alone,
 both are reported: rendered covers at photo resolution (15/15) as the representative case,
 and the low-resolution artwork (1/15) as the documented limit.
+
+## AI cover reading is a second reader, not a replacement
+
+Tesseract is weak on Macedonian Cyrillic display type. That is measured, not assumed: it is
+what `docs/accuracy-hard-offline.md` and the Macedonian fixtures show, and it is the whole
+reason this path exists.
+
+The trade accepted is real and worth stating plainly: **when AI reading is on and the phone
+is online, the cover photo is uploaded to Google.** The app is no longer strictly
+offline-only for that one path.
+
+Everything that made the offline guarantee true is kept:
+
+- It is **opt-in and visible** — a tappable pill in the scan header beside the Open Library
+  control, never a silent background behaviour, with a line under it saying what is sent.
+- It needs the **user's own API key**. No key is bundled in the build, none is shared
+  between users, and there is no proxy server — a proxy would reintroduce exactly the
+  server this project exists without.
+- It **always falls back** to the on-device pipeline: no key, no connection, a timeout, an
+  auth error, a quota error, an unreachable host, or a reply that will not parse. Every one
+  of those is a fallback, not an error the user has to deal with.
+- Fallback is **per photo, not per batch**. Three covers read by Gemini and one that timed
+  out and was read on the device is the correct outcome, not a failed scan.
+- Every result still goes through the **same review step** before anything is saved.
+
+Storage, review, grouping, Open Library enrichment and the offline-first default for
+everything else are untouched.
+
+## The AI reader returns null rather than guessing
+
+The metric this project optimises for is "confidently wrong" — a wrong book reported at 60%
+or more, because those are the answers a person accepts without checking. It was 8/15 on
+the real covers before the scanner rebuild and 0/15 after.
+
+An LLM asked to read a cover will happily complete a half-legible title from its own
+knowledge of publishing, which is that failure mode with better spelling. So the prompt
+says, explicitly, that returning `null` is the correct answer when unsure, and forbids
+completing a title or a name from memory. `title: null, author: null` is treated as a valid
+answer — the review card catches it — and never as a failure to retry.
+
+The parser is defensive to match: structured JSON output is requested, but a fenced block,
+a sentence of preamble, an array wrapper, the *word* "null", and a confidence answered on
+0–1 instead of 0–100 all happen, and none of them should lose a good reading.
+
+## The API key is left out of the backup file
+
+`Settings` holds the key, and the JSON export deliberately contains books only. A backup is
+a file people mail to themselves and drop in cloud storage; a Google API key billed to the
+user has no business travelling in it.
+
+## The AI path is sequential, like the OCR path
+
+The plan for this feature suggested firing two or three Gemini calls at once. It is not
+done, and the reason is the memory ceiling above: overlapping the calls means holding
+several photos' worth of decoded `ImageData` at once, so the tesseract fallback still has
+something to read if a call fails. On a batch of one to four photos the saving would have
+been a few seconds, against the one failure mode that kills the tab outright.
+
+## Provenance is tracked separately from `source`
+
+A book carries both `source` (`ocr` | `ai` | `openlibrary` | `manual`) and `reader`
+(`ocr` | `ai`). They look redundant and are not: the catalogue step overwrites `source` with
+`openlibrary` when it corroborates a reading, so without `reader` a Gemini reading that Open
+Library then confirmed would be indistinguishable from an on-device one. The review card
+shows both facts because they answer different questions — which reader explains why one
+card in a batch is sharper than the next, and the catalogue match explains why a title is
+spelled better than the photo could justify.
+
+## The AI benchmark is built but was not run
+
+`npm run benchmark -- --hard --ai` routes the fixture sets through Gemini and writes
+`docs/accuracy-<set>-ai-<online|offline>.md`, in the same format as the on-device runs and
+under its own filename so it can never overwrite them.
+
+**No numbers from it are published here, because it has not been run.** It needs a real API
+key and bills a request per cover, and neither was available when it was written. The
+`ai-ocr.ts` client is injectable and covered by unit tests against canned responses, so the
+prompt, parsing and every fallback path are tested — but the *accuracy* of Gemini on the
+Cyrillic set is currently an expectation, not a measurement. Run it with a key before
+quoting any figure.

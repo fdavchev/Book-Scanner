@@ -3,8 +3,14 @@
 Photograph a book, have its title and author read off the cover, correct anything wrong,
 and keep it in a collection that lives on your phone.
 
-No account. No server. No cloud database. The photos never leave the device, and once it
-is set up the whole thing works with the network switched off.
+No account. No server. No cloud database. Once it is set up the whole thing works with the
+network switched off, and by default the photos never leave the device.
+
+The one exception is opt-in and clearly marked: if you add your own Google Gemini key,
+covers are read by Gemini instead, which handles Macedonian Cyrillic far better than the
+on-device reader. That is the only case where a photo is uploaded, it is a visible pill in
+the scan header rather than a hidden setting, and it falls back to on-device reading the
+moment it fails or you lose signal. Without a key the app behaves exactly as it always has.
 
 It installs to the home screen on **both Android and iPhone**.
 
@@ -19,7 +25,8 @@ It installs to the home screen on **both Android and iPhone**.
 ## What it does
 
 - **Scan** — take a photo, or pick several from the gallery at once.
-- **Read** — the text on the cover is recognised on the device itself.
+- **Read** — the text on the cover is recognised on the device itself, or by Gemini if you
+  have supplied a key and are online.
 - **Detect** — title and author are picked out of that text automatically, with a
   confidence score and a plain-English reason for the choice.
 - **Check (optional)** — the guess can be cross-checked against the Open Library
@@ -33,6 +40,8 @@ It installs to the home screen on **both Android and iPhone**.
 - **Track what you've read** — every book is green (read) or red (still to read). Tap the
   badge in the list to flip it, and filter the library by either.
 - **Back up** — export the whole collection to a JSON file and import it back.
+- **Choose a theme** — light, dark, or follow the phone. It is in the top bar and in
+  Settings.
 
 ## Why a web app, not a native one
 
@@ -60,11 +69,17 @@ The same code can be wrapped by Capacitor into a real APK later without a rewrit
   preprocess.ts    EXIF-correct → resize to 1600px → grayscale + contrast → Otsu
         │          (plus a 400px JPEG cover thumbnail, the only part of the photo kept)
         ▼
-  ocr.ts           tesseract.js worker pool → lines, words, boxes, confidences
-        │
-        ▼
-  candidates.ts    drop cover noise → group lines into blocks → score for title,
-        │          score for author → winner + ranked alternates + a reason
+  route.ts         key present AND online AND enabled?  →  AI      otherwise  →  device
+        │                        │                                       │
+        │            ai-ocr.ts   │  the colour frame → Gemini Flash      │  ocr.ts
+        │            structured  │  → title, author, alternates, raw     │  tesseract.js
+        │            JSON, or    │  text. Any failure falls back ────────┘  worker pool
+        │            null        │  to the device, for that photo only         │
+        │                        ▼                                             ▼
+        │                                                            candidates.ts
+        │                                                            drop cover noise →
+        │                                                            group lines → score
+        │                                                            title and author
         ▼
   enrich.ts        Open Library, accepted only if it agrees with what OCR read   [optional]
         │
@@ -94,6 +109,31 @@ A title set across two lines is merged back into one phrase before scoring. The
 confidence shown on the review card blends OCR confidence with how clearly the winner beat
 the runner-up, so a close call is reported as a close call.
 
+### Turning on AI reading
+
+On-device OCR does badly on Macedonian Cyrillic display type. If that is your collection,
+this is the fix.
+
+1. Get a free Gemini API key at **aistudio.google.com/apikey**.
+2. Open **Settings** in the app and paste it in.
+3. An **AI** pill appears next to the lookup pill on the Scan screen. Tap it to turn AI
+   reading off and on at any time.
+
+What that changes, and nothing else:
+
+| | Without a key | With a key, online | With a key, offline |
+|---|---|---|---|
+| Who reads the cover | this device | Gemini | this device |
+| Is the photo uploaded | no | **yes, to Google** | no |
+| Who pays | nobody | you, per cover | nobody |
+| If it fails | — | falls back to this device, per photo | — |
+
+The key is stored on the phone, sent only to Google, and deliberately kept out of the
+backup file. Remove it in Settings and the app is exactly what it was before.
+
+Each review card says which reader produced it, so a batch where one cover fell back to
+on-device reading is visible rather than mysterious.
+
 ### Storage
 
 IndexedDB, two stores, no query layer. A book is five fields and a thumbnail and a
@@ -114,9 +154,14 @@ npm run preview      # serve the built app
 ### Tests
 
 ```bash
-npm test             # 136 unit tests (vitest)
-npm run test:e2e     # 40 end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
+npm test             # 184 unit tests (vitest)
+npm run test:e2e     # end-to-end tests (Playwright: Chromium, Pixel, WebKit/iPhone)
 ```
+
+The AI reader is tested against a mocked client — the prompt it sends, the JSON it accepts,
+and every one of its fallback paths (timeout, bad key, quota, unreachable, unparseable
+reply, and a valid "I could not read it"). No API key and no network are needed for
+`npm test`.
 
 ### Measuring accuracy
 
@@ -128,6 +173,9 @@ npm run fetch-benchmark               # download real covers from Open Library
 npm run benchmark                     # clean covers, offline
 npm run benchmark -- --hard --lookup  # difficult set, with the catalogue
 npm run benchmark -- --real --lookup  # real low-resolution artwork
+
+# The same sets, read by Gemini instead. Needs your own key; one billed request per cover.
+GEMINI_API_KEY=your-key npm run benchmark -- --hard --ai
 ```
 
 Each run writes a `docs/accuracy-<set>-<online|offline>.md` with per-cover results.
@@ -158,7 +206,13 @@ of pixels wide, which is the case the app is actually used in.
 - **Small or distant photos fail.** Fill the frame with one cover.
 - **One book per photo** by default. A shelf photo is handled with *Crop & rescan*, one
   book at a time, rather than by automatic segmentation, which is not reliable enough.
-- **English and Macedonian** only, and only the languages you download.
+- **English and Macedonian** only for on-device reading, and only the languages you
+  download. The AI reader is not limited this way, but needs a key and a connection.
+- **AI reading costs money and privacy.** It is your Google key being billed, and the cover
+  photo does go to Google. It is off until you add a key, and one tap turns it off again.
+- **The AI accuracy numbers are not measured.** The benchmark can run the AI path
+  (`--ai`), but it has not been run against a real key — see `DECISIONS.md`. The
+  on-device numbers below are measured.
 - **iOS can evict storage.** Apple may clear a web app's data if the phone runs very low
   on space. `navigator.storage.persist()` is requested where supported, and Safari ignores
   it. This is exactly why JSON export exists — use it.

@@ -5,6 +5,8 @@ import type { Book, ReadStatus } from '../storage/db'
 import { describeBackup, exportToFile, importFromFile } from '../storage/backup'
 import type { BooksApi } from './useBooks'
 
+type ViewMode = 'list' | 'grid'
+
 export function LibraryScreen({
   books,
   query,
@@ -17,6 +19,7 @@ export function LibraryScreen({
   const [open, setOpen] = useState<Book>()
   const [notice, setNotice] = useState<string>()
   const [filter, setFilter] = useState<'all' | ReadStatus>('all')
+  const [view, setView] = useState<ViewMode>('list')
   const results = searchBooks(books.books, query).filter(
     (book) => filter === 'all' || book.status === filter,
   )
@@ -76,7 +79,7 @@ export function LibraryScreen({
   }
 
   return (
-    <>
+    <div className="fade-in">
       <h1>My Books</h1>
 
       <label className="visually-hidden" htmlFor="library-search">
@@ -91,40 +94,64 @@ export function LibraryScreen({
         data-testid="library-search"
       />
 
-      <div className="row" style={{ marginTop: 10 }}>
-        {(
-          [
-            ['all', `All ${books.books.length}`],
-            ['unread', `To read ${unreadCount}`],
-            ['read', `Read ${books.books.length - unreadCount}`],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={`pill ${filter === value ? 'on' : 'off'}`}
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-            data-testid={`filter-${value}`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="row between" style={{ marginTop: 10 }}>
+        <div className="row">
+          {(
+            [
+              ['all', `All ${books.books.length}`],
+              ['unread', `To read ${unreadCount}`],
+              ['read', `Read ${books.books.length - unreadCount}`],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`pill ${filter === value ? 'on' : 'off'}`}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+              data-testid={`filter-${value}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="segmented" role="group" aria-label="Layout">
+          {(
+            [
+              ['list', 'List'],
+              ['grid', 'Covers'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              onClick={() => setView(value)}
+              data-testid={`view-${value}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <p className="dim small" style={{ marginTop: 8 }}>
+      <p className="dim small" style={{ marginTop: 10 }}>
         Showing {results.length} of {books.books.length} book
         {books.books.length === 1 ? '' : 's'}
       </p>
 
       {results.length === 0 ? (
         <p className="empty">
+          <span className="glyph" aria-hidden="true">
+            ☰
+          </span>
           {books.books.length === 0
             ? 'No books yet. Scan one from the Scan tab.'
             : 'Nothing matches that search.'}
         </p>
       ) : (
-        <ul className="book-list">
+        <ul className={`book-list ${view === 'grid' ? 'grid' : ''}`}>
           {results.map((book) => (
             <li key={book.id} className="card book-row" data-testid="book-row">
               <button
@@ -153,28 +180,34 @@ export function LibraryScreen({
       )}
 
       <h2>Backup &amp; moving to a new phone</h2>
-      <p className="small dim">
-        Your books live only on this device. <strong>Export</strong> writes them, covers
-        included, to a single file. On the new phone, install the app and{' '}
-        <strong>Import</strong> that file — everything comes back.
-      </p>
-      <div className="row">
-        <button type="button" onClick={handleExport} disabled={busy} data-testid="export-books">
-          {busy ? 'Working…' : 'Export to a file'}
-        </button>
-        <label className="pill" style={{ textTransform: 'none', letterSpacing: 0 }}>
-          Import a backup
-          <input
-            type="file"
-            accept="application/json,.json"
-            className="visually-hidden"
-            data-testid="import-books"
-            onChange={(event) => void handleImport(event.target.files?.[0])}
-          />
-        </label>
+      <div className="card stack">
+        <p className="small dim" style={{ margin: 0 }}>
+          Your books live only on this device. <strong>Export</strong> writes them, covers
+          included, to a single file. On the new phone, install the app and{' '}
+          <strong>Import</strong> that file — everything comes back.
+        </p>
+        <div className="row">
+          <button type="button" onClick={handleExport} disabled={busy} data-testid="export-books">
+            {busy ? 'Working…' : 'Export to a file'}
+          </button>
+          <label className="pill" style={{ textTransform: 'none', letterSpacing: 0, margin: 0 }}>
+            Import a backup
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="visually-hidden"
+              data-testid="import-books"
+              onChange={(event) => void handleImport(event.target.files?.[0])}
+            />
+          </label>
+        </div>
+        {notice && (
+          <p className="small dim" style={{ margin: 0 }}>
+            {notice}
+          </p>
+        )}
       </div>
-      {notice && <p className="small dim">{notice}</p>}
-    </>
+    </div>
   )
 }
 
@@ -228,7 +261,7 @@ function BookEditor({
   const [status, setStatus] = useState(book.status)
 
   return (
-    <>
+    <div className="fade-in">
       <h1>Edit book</h1>
       <div className="card stack">
         <CoverImage blob={book.cover} alt="" large />
@@ -249,8 +282,13 @@ function BookEditor({
           />
         </div>
         <p className="small dim" style={{ margin: 0 }}>
-          Added {new Date(book.dateAdded).toLocaleDateString()} ·{' '}
-          {book.source === 'openlibrary' ? 'matched via Open Library' : book.source}
+          Added {new Date(book.dateAdded).toLocaleDateString()}
+          {/* Books saved before AI reading existed carry no reader, and claiming one for
+              them would be an invention. Those fall back to what was recorded: the source. */}
+          {book.reader
+            ? ` · ${book.reader === 'ai' ? 'read via AI' : 'read on device'}`
+            : ` · ${book.source === 'openlibrary' ? 'matched via Open Library' : book.source}`}
+          {book.reader && book.source === 'openlibrary' ? ' · matched in the catalogue' : ''}
           {book.photoCount > 1 ? ` · from ${book.photoCount} photos` : ''}
         </p>
         <div className="row">
@@ -279,6 +317,6 @@ function BookEditor({
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }

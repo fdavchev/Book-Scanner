@@ -20,6 +20,17 @@ function confidenceLabel(confidence: number): string {
   return 'Not sure — please check'
 }
 
+/**
+ * Which reader read this cover, and whether the catalogue then agreed.
+ *
+ * Two facts rather than one, because they answer different questions: the reader explains
+ * why one card in a batch is sharper than the next, and the catalogue match explains why a
+ * title is spelled better than the cover photo could justify.
+ */
+function readerLabel(reader: ReviewItem['reader']): string {
+  return reader === 'ai' ? 'Read via AI' : 'Read on device'
+}
+
 export function ReviewScreen({
   items,
   languages,
@@ -70,6 +81,7 @@ export function ReviewScreen({
           cover: item.cover,
           confidence: item.confidence,
           source: item.source,
+          reader: item.reader,
           ocrText: item.ocrText,
           photoCount: item.images.length,
         })),
@@ -97,16 +109,23 @@ export function ReviewScreen({
 
   if (items.length === 0) {
     return (
-      <>
+      <div className="fade-in">
         <h1>Review</h1>
-        <p className="empty">Nothing to review. Scan some books first.</p>
-      </>
+        <p className="empty">
+          <span className="glyph" aria-hidden="true">
+            ⌸
+          </span>
+          Nothing to review. Scan some books first.
+        </p>
+      </div>
     )
   }
 
   return (
-    <>
-      <h1>Review {items.length} book{items.length === 1 ? '' : 's'}</h1>
+    <div className="fade-in">
+      <h1>
+        Review {items.length} book{items.length === 1 ? '' : 's'}
+      </h1>
       <p className="dim small">
         Check each one, fix anything wrong, then save. Nothing is stored until you do.
       </p>
@@ -120,7 +139,7 @@ export function ReviewScreen({
       <ul className="book-list">
         {items.map((item) => (
           <li key={item.id} className="card stack" data-testid="review-card">
-            <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+            <div className="row nowrap" style={{ alignItems: 'flex-start' }}>
               <CoverImage blob={item.cover} alt="" large />
               <div className="stack" style={{ flex: 1, minWidth: 0 }}>
                 <div className="field">
@@ -146,9 +165,14 @@ export function ReviewScreen({
               <span className={confidenceClass(item.confidence)}>
                 {confidenceLabel(item.confidence)}
               </span>
-              <span className="chip">
-                {item.source === 'openlibrary' ? 'Matched via Open Library' : 'OCR'}
+              <span
+                className={`chip ${item.reader === 'ai' ? 'ai' : ''}`}
+                data-testid="reader-chip"
+                data-reader={item.reader}
+              >
+                {readerLabel(item.reader)}
               </span>
+              {item.source === 'openlibrary' && <span className="chip">Matched in catalogue</span>}
               {item.images.length > 1 && (
                 <span className="chip">from {item.images.length} photos</span>
               )}
@@ -159,8 +183,8 @@ export function ReviewScreen({
 
             {item.confidence < UNSURE_BELOW && (
               <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
-                The cover was hard to read. Check the title and author before saving — or
-                use <strong>Crop &amp; rescan</strong> to try again on just the cover.
+                The cover was hard to read. Check the title and author before saving — or use{' '}
+                <strong>Crop &amp; rescan</strong> to try again on just the cover.
               </p>
             )}
 
@@ -208,7 +232,6 @@ export function ReviewScreen({
               <label className="row small" style={{ textTransform: 'none', margin: 0 }}>
                 <input
                   type="checkbox"
-                  style={{ width: 20, minHeight: 20 }}
                   checked={selected.includes(item.id)}
                   onChange={(event) =>
                     setSelected((current) =>
@@ -246,6 +269,6 @@ export function ReviewScreen({
       >
         {saving ? 'Saving…' : `Save all ${items.length}`}
       </button>
-    </>
+    </div>
   )
 }

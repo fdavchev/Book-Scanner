@@ -69,7 +69,8 @@ export interface Detection {
   reason: string
   titleAlternates: string[]
   authorAlternates: string[]
-  source: 'ocr' | 'openlibrary' | 'manual'
+  /** Which reader produced this, and whether the catalogue then corroborated it. */
+  source: 'ocr' | 'ai' | 'openlibrary' | 'manual'
 }
 
 /**

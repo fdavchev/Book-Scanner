@@ -8,8 +8,13 @@
     <p>Dev-only harness. <code>npm run benchmark</code> drives this page with Playwright.</p>
     <pre id="log"></pre>
     <script type="module">
-      import { prepare } from '/src/pipeline/preprocess.ts'
+      import { encodeJpeg, prepare } from '/src/pipeline/preprocess.ts'
       import { TesseractPool, readImage } from '/src/pipeline/ocr.ts'
+      import {
+        createGeminiClient,
+        evidenceFromAi,
+        readWithAi,
+      } from '/src/pipeline/ai-ocr.ts'
       import {
         detect,
         groupLines,
@@ -46,11 +51,63 @@
       }
 
       let pool = null
+      let aiClient = null
 
       window.bench = {
         async init(languages = ['eng'], paths = {}) {
           pool = await TesseractPool.create(languages, 1, undefined, paths)
           return true
+        },
+        /** `--ai` does not need tesseract at all, so the pool is never created for it. */
+        initAi(apiKey, model) {
+          aiClient = createGeminiClient(model ? { apiKey, model } : { apiKey })
+          return true
+        },
+        /**
+         * The Gemini path, measured through exactly the code the app runs: the same
+         * prompt, the same defensive parsing, and the same catalogue step afterwards.
+         */
+        async runAi(base64, options = {}) {
+          const blob = base64ToBlob(base64, options.type)
+          const started = performance.now()
+          const prepared = await prepare(blob)
+          // The resized colour frame, not the binarised one — the same choice the app makes.
+          const jpeg = await encodeJpeg(prepared.raw)
+          let detection
+          let rawText = ''
+          let failed
+          try {
+            const outcome = await readWithAi(aiClient, jpeg)
+            detection = outcome.detection
+            rawText = outcome.rawText
+          } catch (err) {
+            // Recorded rather than thrown: a run of 18 covers should not be lost to one
+            // rate-limited request, and the report needs to show which covers failed.
+            failed = err?.kind ? `${err.kind}: ${err.message}` : String(err)
+            detection = {
+              title: '',
+              author: '',
+              confidence: 0,
+              reason: 'The AI call failed.',
+              titleAlternates: [],
+              authorAlternates: [],
+              source: 'ai',
+            }
+          }
+          if (options.lookup && !failed) {
+            const { result, ranked } = evidenceFromAi(rawText, detection)
+            const outcome = await identify(result, ranked, detection, { cache: lookupCache })
+            detection = outcome.detection
+          }
+          return {
+            ...detection,
+            failed,
+            ms: Math.round(performance.now() - started),
+            meanConfidence: detection.confidence,
+            lineCount: rawText.split('\n').filter(Boolean).length,
+            thumbnailBytes: prepared.thumbnail.size,
+            rawText,
+          }
         },
         async run(base64, options = {}) {
           let blob = base64ToBlob(base64, options.type)

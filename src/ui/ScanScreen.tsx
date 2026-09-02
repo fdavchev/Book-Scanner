@@ -1,33 +1,43 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { LookupPill } from './LookupPill'
+import { AiPill } from './AiPill'
 import { useScanner } from './useScanner'
 import type { SettingsApi } from './useSettings'
 import type { ReviewItem } from '../pipeline/group'
 import type { LanguageCode } from '../pipeline/ocr'
+import { aiControlVisible, chooseReader } from '../pipeline/route'
+import { describeFailure } from '../pipeline/ai-ocr'
 
 export function ScanScreen({
   settings,
   onScanned,
+  onOpenSettings,
 }: {
   settings: SettingsApi
   onScanned: (items: ReviewItem[]) => void
+  onOpenSettings: () => void
 }) {
   const scanner = useScanner()
   const fileInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
-  const [cameraError, setCameraError] = useState<string>()
+
+  const current = settings.settings
+  const hasKey = Boolean(current.geminiApiKey)
+  const reader = chooseReader({ mode: current.aiMode, hasKey, online: settings.online })
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     const items = await scanner.scan(Array.from(files), {
-      languages: settings.settings.languages as LanguageCode[],
-      lookupMode: settings.settings.lookupMode,
+      languages: current.languages as LanguageCode[],
+      lookupMode: current.lookupMode,
       online: settings.online,
+      aiMode: current.aiMode,
+      apiKey: current.geminiApiKey,
     })
     if (items.length > 0) onScanned(items)
   }
 
-  const languages = settings.settings.languages
+  const languages = current.languages
 
   function toggleLanguage(code: LanguageCode) {
     const next = languages.includes(code)
@@ -36,16 +46,25 @@ export function ScanScreen({
     void settings.update({ languages: (next.length === 0 ? ['mkd'] : next) as LanguageCode[] })
   }
 
+  const done = scanner.jobs.filter((j) => j.stage === 'done').length
+
   return (
-    <>
+    <div className="fade-in">
       <h1>Scan</h1>
 
-      <div className="row" style={{ marginBottom: 14 }}>
+      <div className="row" style={{ marginBottom: 12 }}>
         <LookupPill
-          mode={settings.settings.lookupMode}
+          mode={current.lookupMode}
           online={settings.online}
           onChange={(mode) => void settings.update({ lookupMode: mode })}
         />
+        {aiControlVisible(hasKey) && (
+          <AiPill
+            mode={current.aiMode}
+            online={settings.online}
+            onChange={(mode) => void settings.update({ aiMode: mode })}
+          />
+        )}
         {(
           [
             ['mkd', 'Macedonian'],
@@ -64,6 +83,32 @@ export function ScanScreen({
           </button>
         ))}
       </div>
+
+      <p className="tiny faint" style={{ marginBottom: 14 }}>
+        {reader === 'ai'
+          ? 'Covers will be read by Gemini — the photo is sent to Google — with on-device reading as the fallback.'
+          : 'Covers will be read on this device. Nothing is sent anywhere.'}
+        {!hasKey && (
+          <>
+            {' '}
+            <button type="button" className="link" onClick={onOpenSettings}>
+              Set up AI reading
+            </button>
+          </>
+        )}
+      </p>
+
+      {/* Only the two failures the user can act on interrupt; the rest fall back quietly. */}
+      {scanner.aiFailure && (
+        <div className="banner bad">
+          <p className="small" style={{ margin: 0 }}>
+            {describeFailure(scanner.aiFailure)}{' '}
+            <button type="button" className="link" onClick={onOpenSettings}>
+              Open Settings
+            </button>
+          </p>
+        </div>
+      )}
 
       <div className="stack">
         {/* `capture` opens the camera directly. It is preferred over getUserMedia
@@ -91,10 +136,7 @@ export function ScanScreen({
           type="button"
           className="primary big"
           disabled={scanner.running}
-          onClick={() => {
-            setCameraError(undefined)
-            cameraInput.current?.click()
-          }}
+          onClick={() => cameraInput.current?.click()}
         >
           Open Camera
         </button>
@@ -108,11 +150,9 @@ export function ScanScreen({
         </button>
       </div>
 
-      {cameraError && <p className="small dim">{cameraError}</p>}
-
       {scanner.loadingEngine !== undefined && (
         <div className="banner" style={{ marginTop: 16 }}>
-          <p className="small">Starting the text recogniser…</p>
+          <p className="small">Starting the on-device text recogniser…</p>
           <div className="progress">
             <div style={{ width: `${Math.round(scanner.loadingEngine * 100)}%` }} />
           </div>
@@ -120,37 +160,46 @@ export function ScanScreen({
       )}
 
       {scanner.error && (
-        <div className="banner" style={{ marginTop: 16, color: 'var(--bad)' }}>
-          <p className="small">{scanner.error}</p>
+        <div className="banner bad" style={{ marginTop: 16 }}>
+          <p className="small" style={{ margin: 0 }}>
+            {scanner.error}
+          </p>
         </div>
       )}
 
       {scanner.jobs.length > 0 && (
         <>
           <h2>
-            Scanning {scanner.jobs.filter((j) => j.stage === 'done').length}/
-            {scanner.jobs.length}
+            Scanning {done}/{scanner.jobs.length}
           </h2>
           <div className="card" data-testid="scan-progress">
             {scanner.jobs.map((job) => (
-              <div key={job.id} className="scan-item stack" style={{ gap: 4 }}>
-                <div className="row" style={{ justifyContent: 'space-between' }}>
+              <div key={job.id} className="scan-item">
+                <div className="row between nowrap">
                   <span className="meta">{job.title ?? job.name}</span>
-                  <span className="dim">{job.error ?? job.detail ?? 'waiting'}</span>
+                  <span className="dim small">{job.error ?? job.detail ?? 'waiting'}</span>
                 </div>
                 {job.stage !== 'done' && job.stage !== 'failed' && (
                   <div className="progress">
                     <div style={{ width: `${Math.round((job.progress ?? 0.08) * 100)}%` }} />
                   </div>
                 )}
-                {job.stage === 'done' && (job.warnings?.length ?? 0) > 0 && (
-                  <span className="small dim">{job.warnings?.[0]}</span>
+                {job.stage === 'done' && (
+                  <div className="row">
+                    <span className={`chip ${job.reader === 'ai' ? 'ai' : ''}`}>
+                      {job.reader === 'ai' ? 'Read via AI' : 'Read on device'}
+                    </span>
+                    {(job.warnings?.length ?? 0) > 0 && (
+                      <span className="small dim">{job.warnings?.[0]}</span>
+                    )}
+                  </div>
                 )}
+                {job.fellBack && <span className="tiny faint">{job.fellBack}</span>}
               </div>
             ))}
           </div>
         </>
       )}
-    </>
+    </div>
   )
 }

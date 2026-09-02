@@ -71,9 +71,12 @@ export function CropAndRescan({
         titleAlternates: detection.titleAlternates,
         authorAlternates: detection.authorAlternates,
         source: detection.source,
+        reader: 'ocr',
         ocrText: ocr.text,
         cover: prepared.thumbnail,
-        images: [{ id: `${item.id}-crop`, blob: cropped, detection, ocrText: ocr.text }],
+        images: [
+          { id: `${item.id}-crop`, blob: cropped, detection, ocrText: ocr.text, reader: 'ocr' },
+        ],
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

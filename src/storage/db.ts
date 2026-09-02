@@ -6,6 +6,7 @@
  * the loaded array. See DECISIONS.md for why there is no SQLite/WASM layer here.
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import type { AiMode } from '../pipeline/route'
 
 /** Whether the book has been read yet. */
 export type ReadStatus = 'read' | 'unread'
@@ -23,7 +24,12 @@ export interface Book {
   cover?: Blob
   /** 0–100 detection confidence at capture time. */
   confidence?: number
-  source: 'ocr' | 'openlibrary' | 'manual'
+  source: 'ocr' | 'ai' | 'openlibrary' | 'manual'
+  /**
+   * Which reader read the cover. Optional because records written before AI reading
+   * existed do not carry it; absent means the on-device pipeline.
+   */
+  reader?: 'ocr' | 'ai'
   /** Raw OCR text, kept so a book can be re-matched against Open Library later. */
   ocrText?: string
   photoCount: number
@@ -31,11 +37,23 @@ export interface Book {
 
 export type LookupMode = 'auto' | 'forced-on' | 'forced-off'
 
+/** `system` follows the phone's own setting; the other two override it. */
+export type ThemeChoice = 'system' | 'light' | 'dark'
+
 export interface Settings {
   lookupMode: LookupMode
   languages: ('eng' | 'mkd')[]
   /** Languages whose OCR data has been pulled into the Cache API for offline use. */
   offlineLanguages: ('eng' | 'mkd')[]
+  /** Whether to read covers with Gemini when a key is set and the network is really there. */
+  aiMode: AiMode
+  /**
+   * The user's own Gemini key. It is used for direct browser → Google calls and nothing
+   * else: never bundled into the build, never logged, and deliberately left out of the JSON
+   * backup, which is a file people mail to themselves.
+   */
+  geminiApiKey: string
+  theme: ThemeChoice
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -44,6 +62,11 @@ export const DEFAULT_SETTINGS: Settings = {
   // the Macedonian model is the smaller of the two to download for offline use.
   languages: ['mkd'],
   offlineLanguages: [],
+  // On by default, but inert until a key exists — so nothing is ever sent to Google
+  // because of a default the user did not choose.
+  aiMode: 'auto',
+  geminiApiKey: '',
+  theme: 'system',
 }
 
 /**
@@ -138,6 +161,7 @@ export interface NewBook {
   cover?: Blob
   confidence?: number
   source?: Book['source']
+  reader?: Book['reader']
   ocrText?: string
   photoCount?: number
 }
@@ -153,6 +177,7 @@ export async function addBook(input: NewBook): Promise<Book> {
     cover: input.cover,
     confidence: input.confidence,
     source: input.source ?? 'manual',
+    reader: input.reader,
     ocrText: input.ocrText,
     photoCount: input.photoCount ?? 1,
     status: input.status ?? 'unread',

@@ -3,6 +3,7 @@
  * or a cover and a spine — collapse into a single review card showing "from 2 photos".
  */
 import type { Detection } from './types'
+import type { ReaderChoice } from './route'
 import { similarity } from './text'
 
 /** Above this combined title/author similarity, two detections are the same book. */
@@ -15,6 +16,13 @@ export interface ScannedImage {
   detection: Detection
   cover?: Blob
   ocrText: string
+  /**
+   * Which reader produced this. Tracked separately from `detection.source`, which the
+   * catalogue step overwrites with 'openlibrary' when it corroborates a reading — without
+   * this field a Gemini reading that Open Library then confirmed would be
+   * indistinguishable from an on-device one on the review card.
+   */
+  reader: ReaderChoice
 }
 
 export interface ReviewItem {
@@ -26,6 +34,7 @@ export interface ReviewItem {
   titleAlternates: string[]
   authorAlternates: string[]
   source: Detection['source']
+  reader: ReaderChoice
   ocrText: string
   cover?: Blob
   /** The images this card was built from, in scan order. */
@@ -51,6 +60,7 @@ function toItem(image: ScannedImage): ReviewItem {
     titleAlternates: image.detection.titleAlternates,
     authorAlternates: image.detection.authorAlternates,
     source: image.detection.source,
+    reader: image.reader,
     ocrText: image.ocrText,
     cover: image.cover,
     images: [image],
@@ -77,6 +87,7 @@ export function groupDetections(
         match.confidence = image.detection.confidence
         match.reason = image.detection.reason
         match.source = image.detection.source
+        match.reader = image.reader
         match.cover = image.cover ?? match.cover
       }
     } else {

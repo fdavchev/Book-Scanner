@@ -241,6 +241,16 @@ Stated plainly.
   correctly by title and author), but the e2e tests do not depend on the network.
 - **Long-term iOS storage retention.** Cannot be tested in an afternoon. This is why JSON
   export exists.
+- **The Gemini API, against a real key.** Added 2 September 2026 (see `DECISIONS.md`).
+  Every part of the client that can be tested without one *is* tested — the prompt, the
+  request it builds, the JSON it accepts, and each fallback path (timeout, bad key, quota,
+  unreachable host, unparseable reply, and a valid "I could not read it") — all against a
+  mocked client. What is **not** verified: a single live call was never made. The request
+  and response shapes are written from the documented API rather than observed, the model
+  id `gemini-2.5-flash` was never exercised, and consequently **there are no measured
+  accuracy numbers for the AI path at all.** `npm run benchmark -- --hard --ai` exists
+  and refuses cleanly without a key; it has not been run. Any claim about how much better
+  Gemini reads Macedonian covers is, at present, an expectation.
 
 ## 8. What was not built
 

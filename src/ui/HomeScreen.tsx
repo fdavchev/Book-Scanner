@@ -17,17 +17,38 @@ export function HomeScreen({
 }) {
   const [query, setQuery] = useState('')
   const recent = books.books.slice(0, 4)
+  const total = books.books.length
+  const read = books.books.filter((b) => b.status === 'read').length
 
   return (
-    <>
-      <h1>Book Scanner</h1>
-      <p className="dim">
-        {books.loading
-          ? 'Opening your collection…'
-          : books.books.length === 0
-            ? 'Your collection is empty. Scan a book to start it.'
-            : `${books.books.length} book${books.books.length === 1 ? '' : 's'} on this device.`}
-      </p>
+    <div className="fade-in">
+      <div className="hero">
+        <h1>Book Scanner</h1>
+        <p className="dim">
+          {books.loading
+            ? 'Opening your collection…'
+            : total === 0
+              ? 'Your collection is empty. Photograph a cover to start it.'
+              : `${total} book${total === 1 ? '' : 's'}, kept on this device.`}
+        </p>
+      </div>
+
+      {total > 0 && (
+        <div className="stats">
+          <div className="stat">
+            <span className="n">{total}</span>
+            <span className="k">In total</span>
+          </div>
+          <div className="stat read">
+            <span className="n">{read}</span>
+            <span className="k">Read</span>
+          </div>
+          <div className="stat unread">
+            <span className="n">{total - read}</span>
+            <span className="k">To read</span>
+          </div>
+        </div>
+      )}
 
       <OfflineSetup settings={settings} />
 
@@ -37,7 +58,7 @@ export function HomeScreen({
 
       <form
         className="row"
-        style={{ marginTop: 16 }}
+        style={{ marginTop: 14 }}
         onSubmit={(event) => {
           event.preventDefault()
           onSearch(query)
@@ -55,6 +76,16 @@ export function HomeScreen({
         />
       </form>
 
+      {books.loading && (
+        <>
+          <h2>Recently added</h2>
+          <div className="stack tight" aria-hidden="true">
+            <div className="skeleton" />
+            <div className="skeleton" />
+          </div>
+        </>
+      )}
+
       {recent.length > 0 && (
         <>
           <h2>Recently added</h2>
@@ -71,6 +102,6 @@ export function HomeScreen({
           </ul>
         </>
       )}
-    </>
+    </div>
   )
 }

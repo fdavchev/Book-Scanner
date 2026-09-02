@@ -397,3 +397,16 @@ export function assessQuality(grayscale: ImageData): ImageQuality {
 
   return { sharpness, brightness, contrast, megapixels, warnings }
 }
+
+/**
+ * Re-encodes an already-prepared frame as a JPEG.
+ *
+ * The AI path sends the resized *colour* image rather than the binarised one: thresholding
+ * was tuned for tesseract, and throwing colour and soft edges away before handing the
+ * cover to a multimodal model only loses it information it would have used.
+ */
+export async function encodeJpeg(image: ImageData, quality = 0.85): Promise<Blob> {
+  const canvas = createCanvas(image.width, image.height)
+  context2d(canvas).putImageData(image, 0, 0)
+  return canvasToBlob(canvas, quality)
+}

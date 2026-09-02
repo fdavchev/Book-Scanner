@@ -1,38 +1,118 @@
-/* Design tokens. Light by default, dark via prefers-color-scheme — no framework, so the
-   offline bundle stays small. */
+/*
+ * Design tokens and the whole stylesheet. No framework: the offline bundle has to stay
+ * small, and this is one file the service worker precaches.
+ *
+ * Three theme states, in this order of precedence:
+ *   1. [data-theme="light"|"dark"] — the user made a choice, and it wins everywhere.
+ *   2. prefers-color-scheme — the phone's own setting, used when the choice is "system".
+ *   3. :root — light, the fallback when nothing is known.
+ * Every colour is defined on bare :root first, so no token exists only inside a media
+ * query and no surface can end up unpainted.
+ */
 :root {
-  --bg: #faf8f5;
-  --surface: #ffffff;
-  --surface-2: #f2eee8;
-  --border: #e2dcd2;
-  --text: #1c1917;
-  --text-dim: #6b6259;
-  --accent: #8c3b2e;
+  --bg: #f7f4ee;
+  --bg-tint: #efe9df;
+  --surface: #fffdf9;
+  --surface-2: #f3eee5;
+  --surface-3: #e9e2d6;
+  --border: #e0d8ca;
+  --border-strong: #cabfad;
+  --text: #1f1b17;
+  --text-dim: #6a6055;
+  --text-faint: #948a7d;
+
+  --accent: #9a3f2f;
+  --accent-hover: #823426;
+  --accent-soft: #f6e6e1;
   --accent-text: #ffffff;
-  --good: #2f6f4f;
-  --warn: #9a6114;
-  --bad: #a33a2a;
+
+  --good: #2f6b4f;
+  --good-soft: #e3f0e8;
+  --warn: #8f5a12;
+  --warn-soft: #f8ecd8;
+  --bad: #a3392a;
+  --bad-soft: #f8e5e1;
+
+  --radius-sm: 9px;
   --radius: 14px;
-  --shadow: 0 1px 2px rgb(28 25 23 / 8%), 0 4px 14px rgb(28 25 23 / 6%);
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgb(31 27 23 / 6%);
+  --shadow: 0 1px 2px rgb(31 27 23 / 6%), 0 6px 18px rgb(31 27 23 / 7%);
+  --shadow-lg: 0 2px 4px rgb(31 27 23 / 8%), 0 18px 40px rgb(31 27 23 / 12%);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent);
+
   --tap: 46px;
-  color-scheme: light dark;
+  --bar-height: 64px;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16151a;
-    --surface: #201f26;
-    --surface-2: #2a2932;
-    --border: #38363f;
-    --text: #f2efe9;
-    --text-dim: #a29c94;
-    --accent: #e08a6c;
-    --accent-text: #1a1014;
-    --good: #6cc39a;
-    --warn: #e0b062;
-    --bad: #e08a7c;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 30%);
+  :root:not([data-theme='light']) {
+    --bg: #131218;
+    --bg-tint: #191821;
+    --surface: #1d1c25;
+    --surface-2: #26252f;
+    --surface-3: #32303c;
+    --border: #353340;
+    --border-strong: #4b4857;
+    --text: #f2eee7;
+    --text-dim: #a49d93;
+    --text-faint: #7c7568;
+
+    --accent: #e5917a;
+    --accent-hover: #f0a58f;
+    --accent-soft: #2a1f21;
+    --accent-text: #1a1013;
+
+    --good: #6dc6a0;
+    --good-soft: #1b2a24;
+    --warn: #e0b268;
+    --warn-soft: #2c2519;
+    --bad: #e58c7c;
+    --bad-soft: #2e1e1c;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 32%);
+    --shadow-lg: 0 2px 4px rgb(0 0 0 / 45%), 0 18px 40px rgb(0 0 0 / 42%);
+
+    color-scheme: dark;
   }
+}
+
+/* The explicit choice, last so it wins over the media query in both directions. */
+:root[data-theme='dark'] {
+  --bg: #131218;
+  --bg-tint: #191821;
+  --surface: #1d1c25;
+  --surface-2: #26252f;
+  --surface-3: #32303c;
+  --border: #353340;
+  --border-strong: #4b4857;
+  --text: #f2eee7;
+  --text-dim: #a49d93;
+  --text-faint: #7c7568;
+
+  --accent: #e5917a;
+  --accent-hover: #f0a58f;
+  --accent-soft: #2a1f21;
+  --accent-text: #1a1013;
+
+  --good: #6dc6a0;
+  --good-soft: #1b2a24;
+  --warn: #e0b268;
+  --warn-soft: #2c2519;
+  --bad: #e58c7c;
+  --bad-soft: #2e1e1c;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 32%);
+  --shadow-lg: 0 2px 4px rgb(0 0 0 / 45%), 0 18px 40px rgb(0 0 0 / 42%);
+
+  color-scheme: dark;
 }
 
 * {
@@ -51,33 +131,51 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
-  line-height: 1.45;
+  line-height: 1.5;
   /* Respect the iPhone notch and home indicator inside a standalone home-screen app. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A quiet wash behind the whole app, so a full-bleed background is not flat. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(1100px 520px at 50% -12%, var(--bg-tint), transparent 70%);
 }
 
 .app {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
 main {
   flex: 1;
-  padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+  padding: 12px 16px calc(var(--bar-height) + 26px + env(safe-area-inset-bottom));
 }
 
+/* ------------------------------------------------------------------ typography */
+
 h1 {
-  font-size: 1.5rem;
-  margin: 4px 0 16px;
+  font-size: clamp(1.45rem, 5.2vw, 1.85rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 2px 0 14px;
 }
 
 h2 {
-  font-size: 1.05rem;
-  margin: 24px 0 10px;
+  font-size: 1.02rem;
+  letter-spacing: -0.005em;
+  margin: 26px 0 10px;
 }
 
 p {
@@ -88,8 +186,66 @@ p {
   color: var(--text-dim);
 }
 
+.faint {
+  color: var(--text-faint);
+}
+
 .small {
   font-size: 0.85rem;
+}
+
+.tiny {
+  font-size: 0.78rem;
+}
+
+strong {
+  font-weight: 650;
+}
+
+/* ------------------------------------------------------------------ top bar */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: max(6px, env(safe-area-inset-top)) 16px 6px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar .where {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar .mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+/* Two book spines, as a wordless mark. */
+.topbar .spine {
+  width: 5px;
+  height: 17px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 8px 0 0 -1px color-mix(in srgb, var(--accent) 42%, transparent);
+  flex: 0 0 auto;
 }
 
 /* ------------------------------------------------------------------ controls */
@@ -103,32 +259,64 @@ button {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+  transition:
+    background 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    transform 0.1s var(--ease),
+    box-shadow 0.16s var(--ease);
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--text-dim);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
+}
+
+:where(button, input, select, textarea, label.pill, a):focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-color: var(--accent);
 }
 
 button.primary {
   background: var(--accent);
   color: var(--accent-text);
   border-color: transparent;
-  font-weight: 600;
+  font-weight: 640;
+  box-shadow: var(--shadow-sm);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
 }
 
 button.big {
   width: 100%;
-  min-height: 60px;
-  font-size: 1.1rem;
+  min-height: 58px;
+  font-size: 1.05rem;
+  border-radius: var(--radius-lg);
+}
+
+button.primary.big {
+  box-shadow: var(--shadow);
 }
 
 button.danger {
   color: var(--bad);
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--bad-soft);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
 }
 
 button.link {
@@ -138,6 +326,31 @@ button.link {
   background: none;
   color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.link:hover:not(:disabled) {
+  background: none;
+}
+
+button.ghost {
+  background: none;
+  border-color: transparent;
+}
+
+/* Compact action button for the top bar. */
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 0.82rem;
+  box-shadow: var(--shadow-sm);
 }
 
 input,
@@ -146,24 +359,40 @@ textarea {
   font: inherit;
   width: 100%;
   min-height: var(--tap);
-  padding: 10px 12px;
+  padding: 11px 13px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+  transition:
+    border-color 0.16s var(--ease),
+    box-shadow 0.16s var(--ease);
+}
+
+input::placeholder {
+  color: var(--text-faint);
+}
+
+input[type='checkbox'] {
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
 }
 
 label {
   display: block;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  font-weight: 600;
   color: var(--text-dim);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .field + .field {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .row {
@@ -173,10 +402,54 @@ label {
   align-items: center;
 }
 
+.row.between {
+  justify-content: space-between;
+}
+
+.row.nowrap {
+  flex-wrap: nowrap;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.stack.tight {
+  gap: 7px;
+}
+
+/* A segmented control: the theme picker and the library's list/grid switch. */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.segmented button {
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  box-shadow: none;
+}
+
+.segmented button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 620;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ------------------------------------------------------------------ surfaces */
@@ -184,9 +457,13 @@ label {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  padding: 15px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card.flush {
+  padding: 11px;
 }
 
 .banner {
@@ -197,67 +474,194 @@ label {
   margin-bottom: 14px;
 }
 
+.banner.good {
+  background: var(--good-soft);
+  border-color: color-mix(in srgb, var(--good) 30%, transparent);
+}
+
+.banner.warn {
+  background: var(--warn-soft);
+  border-color: color-mix(in srgb, var(--warn) 32%, transparent);
+}
+
+.banner.bad {
+  background: var(--bad-soft);
+  border-color: color-mix(in srgb, var(--bad) 34%, transparent);
+}
+
+/* The Home screen hero. */
+.hero {
+  padding: 14px 0 2px;
+}
+
+.hero h1 {
+  margin-bottom: 6px;
+}
+
+.stats {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.stat {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat .n {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.stat .k {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+
+.stat.read .n {
+  color: var(--good);
+}
+
+.stat.unread .n {
+  color: var(--bad);
+}
+
+/* A labelled block in Settings. */
+.section {
+  margin-bottom: 22px;
+}
+
+.section > h2 {
+  margin-top: 0;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.kv .k {
+  color: var(--text-dim);
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 36px;
-  padding: 4px 12px;
-  border-radius: 999px;
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface);
+  color: var(--text);
   font-size: 0.85rem;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+
+.pill:hover {
+  border-color: var(--border-strong);
 }
 
 .pill .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--text-dim);
+  background: var(--text-faint);
+  flex: 0 0 auto;
+  transition: background 0.16s var(--ease);
+}
+
+.pill.on {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
 .pill.on .dot {
   background: var(--good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent);
 }
 
 .pill.off .dot {
-  background: var(--text-dim);
+  background: var(--text-faint);
 }
 
 .chip {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 620;
   background: var(--surface-2);
   color: var(--text-dim);
+  border: 1px solid transparent;
 }
 
 .chip.high {
   color: var(--good);
+  background: var(--good-soft);
 }
 
 .chip.medium {
   color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .chip.low {
   color: var(--bad);
+  background: var(--bad-soft);
+}
+
+/* Which reader read the cover — the per-card source indicator. */
+.chip.ai {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .progress {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
   overflow: hidden;
 }
 
 .progress > div {
   height: 100%;
-  background: var(--accent);
-  transition: width 0.2s ease;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 60%, var(--good))
+  );
+  transition: width 0.25s var(--ease);
 }
 
 /* ------------------------------------------------------------------ book list */
@@ -268,7 +672,14 @@ label {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
+}
+
+/* The same list laid out as covers. Both keep the same row markup and test hooks. */
+.book-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  gap: 12px;
 }
 
 .book-row {
@@ -278,6 +689,38 @@ label {
   width: 100%;
   text-align: left;
   padding: 10px;
+  transition:
+    box-shadow 0.16s var(--ease),
+    border-color 0.16s var(--ease);
+}
+
+.book-row:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.book-list.grid .book-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+}
+
+.book-list.grid .row-open {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.book-list.grid .cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+}
+
+.book-list.grid .status {
+  width: 100%;
+  justify-content: center;
 }
 
 /* The row's own tappable area, beside the status control rather than wrapping it. */
@@ -291,6 +734,12 @@ label {
   border: 0;
   background: none;
   text-align: left;
+  min-height: 0;
+}
+
+.row-open:hover:not(:disabled) {
+  background: none;
+  border-color: transparent;
 }
 
 /* Read or still to be read — green or red, and always tappable. */
@@ -299,11 +748,11 @@ label {
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
-  min-height: 40px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  min-height: 38px;
+  padding: 4px 13px;
+  border-radius: var(--radius-pill);
+  font-size: 0.79rem;
+  font-weight: 620;
 }
 
 .status.wide {
@@ -313,15 +762,21 @@ label {
 }
 
 .status .dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
+  flex: 0 0 auto;
 }
 
 .status.read {
   color: var(--good);
-  border-color: color-mix(in srgb, var(--good) 45%, transparent);
-  background: color-mix(in srgb, var(--good) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--good) 42%, transparent);
+  background: var(--good-soft);
+}
+
+.status.read:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--good) 18%, var(--surface));
+  border-color: var(--good);
 }
 
 .status.read .dot {
@@ -330,8 +785,13 @@ label {
 
 .status.unread {
   color: var(--bad);
-  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
-  background: color-mix(in srgb, var(--bad) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--bad) 42%, transparent);
+  background: var(--bad-soft);
+}
+
+.status.unread:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bad) 18%, var(--surface));
+  border-color: var(--bad);
 }
 
 .status.unread .dot {
@@ -339,17 +799,19 @@ label {
 }
 
 .cover {
-  width: 52px;
-  height: 74px;
+  width: 50px;
+  height: 72px;
   flex: 0 0 auto;
   object-fit: cover;
-  border-radius: 6px;
-  background: var(--surface-2);
+  border-radius: 5px;
+  background: linear-gradient(150deg, var(--surface-2), var(--surface-3));
+  box-shadow: var(--shadow-sm);
 }
 
 .cover.large {
   width: 92px;
   height: 132px;
+  border-radius: var(--radius-sm);
 }
 
 .book-row .meta {
@@ -357,31 +819,74 @@ label {
 }
 
 .book-row .title {
-  font-weight: 600;
+  font-weight: 620;
+  letter-spacing: -0.008em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.book-list.grid .title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .empty {
   text-align: center;
-  padding: 40px 16px;
+  padding: 44px 16px;
   color: var(--text-dim);
+}
+
+.empty .glyph {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 8px;
+  opacity: 0.4;
+}
+
+/* Placeholder rows while the collection loads. */
+.skeleton {
+  height: 74px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
 }
 
 /* ------------------------------------------------------------------ scanning */
 
 .scan-item {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
 }
 
+.scan-item:first-child {
+  padding-top: 2px;
+}
+
 .scan-item:last-child {
   border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.scan-item .meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .crop-area {
@@ -401,7 +906,7 @@ label {
 .crop-box {
   position: absolute;
   border: 2px solid var(--accent);
-  background: rgb(140 59 46 / 18%);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   pointer-events: none;
 }
 
@@ -418,11 +923,15 @@ nav.tabs {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 20;
   display: flex;
-  background: var(--surface);
+  margin: 0 auto;
+  max-width: 760px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
-  z-index: 10;
 }
 
 nav.tabs button {
@@ -430,24 +939,65 @@ nav.tabs button {
   border: 0;
   border-radius: 0;
   background: none;
-  min-height: 62px;
-  font-size: 0.78rem;
+  box-shadow: none;
+  min-height: var(--bar-height);
+  font-size: 0.72rem;
   color: var(--text-dim);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
+  position: relative;
+}
+
+nav.tabs button:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
 }
 
 nav.tabs button[aria-current='page'] {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 640;
+}
+
+/* The active marker, so the current tab reads at a glance and not by colour alone. */
+nav.tabs button[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
 }
 
 nav.tabs .glyph {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   line-height: 1;
+}
+
+/* ------------------------------------------------------------------ motion */
+
+.fade-in {
+  animation: fade-in 0.22s var(--ease) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 .visually-hidden {

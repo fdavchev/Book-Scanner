@@ -7,6 +7,10 @@
  *
  * Options:  --degraded   apply photographic degradation (rotation, blur, darkening, q40)
  *           --limit=N    only the first N covers
+ *           --lookup     corroborate the reading against Open Library
+ *           --ai         read the covers with Gemini instead of tesseract. Needs a key in
+ *                        GEMINI_API_KEY; the model can be overridden with GEMINI_MODEL.
+ *                        Every cover is one billed request, so this is never the default.
  */
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -30,6 +34,11 @@ const set = args.includes('--real')
 // With the lookup on, the catalogue is used to corroborate what OCR read. Off, the result
 // is whatever the device could work out on its own.
 const lookup = args.includes('--lookup')
+// The AI path. It is a real, paid network call per cover, so it is opt-in twice over: the
+// flag has to be passed *and* a key has to be in the environment.
+const ai = args.includes('--ai')
+const apiKey = process.env.GEMINI_API_KEY ?? ''
+const model = process.env.GEMINI_MODEL
 const fixtures = join(root, 'tests', 'fixtures', set)
 const limitArg = args.find((a) => a.startsWith('--limit='))
 const limit = limitArg ? Number(limitArg.split('=')[1]) : Infinity
@@ -121,6 +130,13 @@ async function main() {
     console.error('No benchmark set. Run `npm run fetch-benchmark` first.')
     process.exit(1)
   }
+  if (ai && !apiKey) {
+    console.error('The --ai run needs a Gemini API key.')
+    console.error('  GEMINI_API_KEY=your-key npm run benchmark -- --hard --ai')
+    console.error('Get one at https://aistudio.google.com/apikey.')
+    console.error('Every cover is one billed request, which is why this is never the default.')
+    process.exit(1)
+  }
   const truth = JSON.parse(await readFile(join(fixtures, 'ground-truth.json'), 'utf8')).slice(
     0,
     limit,
@@ -141,17 +157,21 @@ async function main() {
     // The OCR model has to match the book. The `lang` field in each fixture set's ground
     // truth was written but never read, so the Cyrillic fixtures were being run through the
     // English model and every Macedonian number was meaningless.
-    const langs = [...new Set(truth.map((t) => t.lang ?? 'eng'))]
-    await page.evaluate(([l]) => window.bench.init(l), [langs])
+    if (ai) {
+      // No tesseract pool at all on this path — nothing here would use it.
+      await page.evaluate(([k, m]) => window.bench.initAi(k, m), [apiKey, model])
+    } else {
+      const langs = [...new Set(truth.map((t) => t.lang ?? 'eng'))]
+      await page.evaluate(([l]) => window.bench.init(l), [langs])
+    }
 
     for (const book of truth) {
       if (!available.has(book.file)) continue
       const base64 = (await readFile(join(fixtures, book.file))).toString('base64')
       const options = { lookup, ...(degraded ? { degrade: {} } : {}) }
-      const got = await page.evaluate(
-        ([b64, opts]) => window.bench.run(b64, opts),
-        [base64, options],
-      )
+      const got = ai
+        ? await page.evaluate(([b64, opts]) => window.bench.runAi(b64, opts), [base64, options])
+        : await page.evaluate(([b64, opts]) => window.bench.run(b64, opts), [base64, options])
 
       const titleSim = similarity(book.title, got.title)
       const row = {
@@ -169,14 +189,21 @@ async function main() {
         ms: got.ms,
         lineCount: got.lineCount,
         thumbnailBytes: got.thumbnailBytes,
+        failed: got.failed,
       }
       rows.push(row)
-      const mark = row.titleFuzzy ? (row.titleExact ? 'EXACT' : 'fuzzy') : 'MISS '
+      const mark = row.failed
+        ? 'ERROR'
+        : row.titleFuzzy
+          ? row.titleExact
+            ? 'EXACT'
+            : 'fuzzy'
+          : 'MISS '
       console.log(
         `  ${mark} ${book.id.padEnd(36)} "${got.title}" / "${got.author}" (${got.ms} ms)`,
       )
     }
-    await page.evaluate(() => window.bench.dispose())
+    if (!ai) await page.evaluate(() => window.bench.dispose())
   } finally {
     await browser.close()
     vite?.kill()
@@ -187,6 +214,11 @@ async function main() {
   const summary = {
     covers: rows.length,
     degraded,
+    reader: ai ? 'gemini' : 'tesseract',
+    aiFailures: rows.filter((r) => r.failed).length,
+    // The metric the project actually optimises for: a wrong book reported confidently
+    // enough that a person would accept it without checking.
+    confidentlyWrong: rows.filter((r) => !r.titleFuzzy && (r.confidence ?? 0) >= 60).length,
     titleExact: rows.filter((r) => r.titleExact).length,
     titleFuzzy: rows.filter((r) => r.titleFuzzy).length,
     authorHit: rows.filter((r) => r.authorHit).length,
@@ -208,6 +240,9 @@ async function main() {
         ? `Run against **${summary.covers} deliberately difficult covers** (\`node scripts/make-hard-fixtures.mjs\`): blur, angles, glare, dim light, title-only, author-prominent, similar titles and Cyrillic.`
         : `Run against **${summary.covers} rendered covers** at 1200×1800 (\`node scripts/make-fixtures.mjs\`), the resolution a phone photo of a physical book actually has.`,
     'Run through the real browser pipeline in headless Chromium.',
+    ai
+      ? '**Read by Gemini** (' + (model ?? 'the default Flash model') + ') rather than by tesseract.'
+      : '**Read on the device** by tesseract.js.',
     lookup
       ? '**Open Library lookup on** — OCR evidence corroborated against the catalogue.'
       : '**Offline only** — no network; these are the on-device numbers.',
@@ -223,6 +258,8 @@ async function main() {
     `| Title exact match | ${summary.titleExact}/${summary.covers} (${pct(summary.titleExact)}) |`,
     `| Title fuzzy match (≥0.7) | ${summary.titleFuzzy}/${summary.covers} (${pct(summary.titleFuzzy)}) |`,
     `| Author found | ${summary.authorHit}/${summary.covers} (${pct(summary.authorHit)}) |`,
+    `| Confidently wrong (>=60%) | ${summary.confidentlyWrong}/${summary.covers} (${pct(summary.confidentlyWrong)}) |`,
+    ...(ai ? [`| Calls that failed | ${summary.aiFailures}/${summary.covers} |`] : []),
     `| Median time per cover | ${summary.medianMs} ms |`,
     `| Median cover thumbnail | ${summary.medianThumbKb} KB |`,
     '',
@@ -238,7 +275,9 @@ async function main() {
     '',
   ]
 
-  const suffix = `${set}${lookup ? '-online' : '-offline'}${degraded ? '-degraded' : ''}`
+  // The AI runs get their own files, so an --ai run can never overwrite the on-device
+  // numbers that a claim in the README rests on.
+  const suffix = `${set}${ai ? '-ai' : ''}${lookup ? '-online' : '-offline'}${degraded ? '-degraded' : ''}`
   const outFile = join(root, 'docs', `accuracy-${suffix}.md`)
   await writeFile(outFile, lines.join('\n'))
   await writeFile(
