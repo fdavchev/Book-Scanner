@@ -19,6 +19,17 @@ import {
 } from '../pipeline/ai-ocr'
 import type { Detection, Hypothesis, OcrResult } from '../pipeline/types'
 
+/**
+ * A pause before each AI call after the first, so a 3-4 photo batch does not fire
+ * consecutive requests at Gemini fast enough to trip its "high demand" 503s. Only applies
+ * between AI calls — a photo that fell back to on-device reading costs nothing here.
+ */
+const AI_THROTTLE_MS = 1500
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export type JobStage = 'queued' | 'preparing' | 'reading' | 'matching' | 'done' | 'failed'
 
 export interface ScanJob {
@@ -149,6 +160,10 @@ export function useScanner(): ScannerApi {
 
       try {
         const scanned: ScannedImage[] = []
+        // Tracks whether an AI request has already gone out this batch, so the throttle
+        // only ever waits between AI calls — never before the first one, and never when a
+        // photo used on-device reading instead.
+        let aiCallsSoFar = 0
         for (const [index, file] of files.entries()) {
           const job = initial[index]
           try {
@@ -170,6 +185,16 @@ export function useScanner(): ScannerApi {
             let fellBack: string | undefined
 
             if (wanted === 'ai' && ai) {
+              if (aiCallsSoFar > 0) {
+                update(job.id, {
+                  stage: 'reading',
+                  detail: 'pausing briefly before the next AI request',
+                  reader: 'ai',
+                  warnings: quality.warnings,
+                })
+                await sleep(AI_THROTTLE_MS)
+              }
+              aiCallsSoFar += 1
               update(job.id, {
                 stage: 'reading',
                 detail: 'reading the cover with AI',
