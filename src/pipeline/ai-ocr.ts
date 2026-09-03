@@ -31,7 +31,7 @@ export const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta
  * Long enough for a slow phone on mobile data, short enough that a dead connection does
  * not hold up a four-photo batch. On timeout the photo falls back to tesseract.
  */
-export const AI_TIMEOUT_MS = 20_000
+export const AI_TIMEOUT_MS = 30_000
 
 /** Why the AI path could not be used. Each one falls back; only `auth` is worth showing. */
 export type AiFailureKind =
