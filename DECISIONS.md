@@ -250,3 +250,88 @@ key and bills a request per cover, and neither was available when it was written
 prompt, parsing and every fallback path are tested — but the *accuracy* of Gemini on the
 Cyrillic set is currently an expectation, not a measurement. Run it with a key before
 quoting any figure.
+
+## The AI path pays for its own preparation, not tesseract's
+
+`prepare()` used to compute six image buffers eagerly. Four of them — `binarised`,
+`flattened`, `small`, `smallGray` — exist only for tesseract, and when Gemini reads the
+cover none of them is ever touched.
+
+Measured on a 4x-throttled phone profile with a real cover photograph: `binarise` is ~240 ms
+and `flattenIllumination` ~870 ms, so roughly a second per photo went on images that were
+immediately discarded, plus ~13 MB of `ImageData` pinned for the whole network wait.
+
+`binarised` and `flattened` are now memoised getters, computed on first access. Nothing
+about the OCR path changes — `readImage` reads the same properties and gets the same pixels,
+a moment later — and an AI-read photo never pays for them at all. Deferring rather than
+skipping is what keeps `Prepared` one shape and the fallback working unchanged.
+
+`small` and `smallGray` stay eager. They are drawn from the decoded bitmap, which is closed
+before `prepare()` returns, so making them lazy would mean deriving them from `raw` instead
+— a different downscale, feeding the OCR pass that was tuned on the current one. Not worth
+the accuracy risk for ~75 ms.
+
+A/B measured under identical conditions: an AI-read photo went from 3,877 ms to 2,968 ms.
+
+## The frame sent to Gemini is smaller than the one tesseract reads
+
+`OCR_LONG_EDGE = 1600` is a tesseract number: classical OCR segments glyphs and needs a
+minimum number of pixels per character. A multimodal model tiles and downsamples internally,
+so past a point the resolution is discarded server-side after the phone has paid to upload
+it. `AI_LONG_EDGE = 1280` at q0.8 sends 237 KB of base64 instead of 397 KB.
+
+It is produced inside `prepare()`, from the same decoded bitmap as the thumbnail, and only
+when the caller asks for it. The first attempt re-encoded `raw` afterwards instead — that
+needed a full-size canvas and a second scaled draw, measured at 627 ms against 286 ms for a
+plain encode, so the scaling cost more CPU than the smaller upload saved. Drawing once from
+a bitmap that is already open costs a fraction of it.
+
+`raw` is still `OCR_LONG_EDGE`, so a failed AI call falls back to exactly the image the
+on-device pipeline was tuned for. Only the copy that goes over the network is smaller.
+
+1280 is the conservative step, not the smallest that would work — and it has **not** been
+validated against the accuracy benchmark, because that needs a real API key. Cover titles
+are large type and survive downscaling; author names are often small, and losing those is
+the quiet failure. Before going lower, run `npm run benchmark -- --hard --ai` and `--mk --ai`.
+
+## Thinking is switched off, and the client recovers if that field is refused
+
+Recent Flash models reason internally before answering. For most callers that is the right
+default; here the title is printed on the cover in large type, there is nothing to reason
+about, and every thinking token is latency the user waits through for no visible output.
+
+The control's field name has moved between model generations, so a model rejecting it is an
+expected answer rather than a bug: a 400 that names the thinking field makes the client drop
+it and retry once, and remember for the rest of the session. Guessing wrong would otherwise
+surface as a `server` failure and silently fall back to on-device reading — the feature
+would look broken rather than misconfigured.
+
+`usage` on each reading carries `promptTokens`, `outputTokens`, `thoughtsTokens` and the
+call's wall-clock time, and the scan card shows them. Those three numbers are the only way
+to tell the causes of a slow call apart — thinking, a long answer, or the network — and they
+call for completely different fixes.
+
+## One deadline per photo, and a transient 503 is retried
+
+`AI_TIMEOUT_MS` was applied per attempt, inside the model-fallback loop, so a photo could
+spend the full budget on the pinned model and the same again on the fallback. Everyone read
+"30 seconds" and the real worst case was a minute. The budget is now started once per
+`read()` and shared by every attempt.
+
+Within it, a 429 or a 503 is retried once with backoff, honouring `Retry-After`. Those are
+transient — Google saying "come back shortly", not "your request was wrong" — and giving up
+on them cost the better reading for that photo. The unconditional 1.5 s pause between AI
+calls is gone: it paid the cost on every request including the ones that were fine, and
+still had no answer for the one that was actually refused.
+
+## The OCR engine warms up during the first AI request
+
+The pool is created lazily so an all-AI batch never downloads ~30 MB it will not use. That
+left a cliff: if the first AI call timed out *and* the engine had never been fetched, the
+user waited the full timeout, then an unexpected 30 MB download, then the OCR read.
+
+The download now starts alongside the first AI request and is awaited only if the fallback
+actually needs it. It costs nothing when the AI call succeeds — a warmed pool is simply left
+unused — and the in-flight promise is shared, so the warm-up and the fallback can never race
+into creating two pools. A failed warm-up is discarded silently rather than poisoning the
+fallback, which surfaces its own errors properly.

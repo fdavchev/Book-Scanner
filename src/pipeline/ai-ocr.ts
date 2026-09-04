@@ -28,10 +28,56 @@ export const GEMINI_MODEL_FALLBACKS = ['gemini-flash-latest']
 export const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 /**
- * Long enough for a slow phone on mobile data, short enough that a dead connection does
- * not hold up a four-photo batch. On timeout the photo falls back to tesseract.
+ * The total budget for one photo, across every attempt.
+ *
+ * This used to be applied per attempt, inside the model-fallback loop — so a photo could
+ * spend this long on the pinned model and then the same again on the fallback before
+ * giving up, and a four-photo batch had a worst case measured in minutes. The budget is
+ * now started once per `read()` and shared: both model attempts and any rate-limit retry
+ * draw from the same 30 seconds, so the worst case is bounded by this number rather than
+ * by a multiple of it.
  */
 export const AI_TIMEOUT_MS = 30_000
+
+/**
+ * How many tokens of hidden reasoning the model may spend before answering. Zero.
+ *
+ * Recent Flash models reason internally by default. That is the right default for most
+ * callers and the wrong one here: the title is printed on the cover in large type, there
+ * is nothing to reason about, and every thinking token is latency the user waits through
+ * and tokens they pay for, producing no visible output.
+ *
+ * The field name for this control has changed across model generations, so a model that
+ * rejects it is an expected case rather than a bug: the client notices, drops the field
+ * and retries once — see `thinkingSupported` in `createGeminiClient`. To confirm it is
+ * actually taking effect, watch `usage.thoughtsTokens` on the returned reading; it should
+ * be 0.
+ */
+export const AI_THINKING_BUDGET = 0
+
+/**
+ * Ceiling on the answer, guarding against one cluttered cover generating for ever.
+ *
+ * Generous on purpose. A truncated response is not a shorter answer — it is invalid JSON,
+ * which `parseAiReading` rejects, so the photo falls back to on-device reading having paid
+ * the full network cost for nothing. With `rawText` capped in the prompt, a normal reading
+ * is a few hundred tokens, so this is several times the headroom it needs.
+ *
+ * Only sent alongside a thinking budget: on some model generations thinking tokens count
+ * against this same ceiling, and a limit tuned for the answer alone would starve them.
+ */
+export const AI_MAX_OUTPUT_TOKENS = 1536
+
+/**
+ * Backoff before retrying a rate-limited or overloaded request, doubled on each step.
+ *
+ * A 429 or a 503 "high demand" is transient — Google is telling you to come back shortly,
+ * not that the request was wrong. Giving up on it costs the better reading for that photo,
+ * so it is worth one retry inside the photo's existing budget. A `Retry-After` header, if
+ * present, wins over this.
+ */
+export const AI_RETRY_BACKOFF_MS = 900
+export const AI_MAX_RETRIES = 1
 
 /** Why the AI path could not be used. Each one falls back; only `auth` is worth showing. */
 export type AiFailureKind =
@@ -73,6 +119,26 @@ export function describeFailure(kind: AiFailureKind): string {
   }
 }
 
+/**
+ * What the call actually cost, read straight off the response's `usageMetadata`.
+ *
+ * Surfaced rather than logged because it is the only way to tell the three causes of a
+ * slow call apart: `thoughtsTokens` high means the model is thinking (it should be 0 —
+ * see `AI_THINKING_BUDGET`), `outputTokens` high means the answer itself is long, and both
+ * low while the call is still slow means the network or Google's queue. Guessing between
+ * those three wastes far more time than carrying the numbers around.
+ */
+export interface AiUsage {
+  promptTokens?: number
+  outputTokens?: number
+  thoughtsTokens?: number
+  totalTokens?: number
+  /** Wall-clock time of the request that produced the answer. */
+  ms?: number
+  /** Which model answered — the pinned one, or a fallback if it had been retired. */
+  model?: string
+}
+
 /** What the model is asked to return. Nulls are wanted — see the prompt. */
 export interface AiReading {
   title: string | null
@@ -84,6 +150,8 @@ export interface AiReading {
   /** Every word the model could read off the cover, kept on the book record. */
   rawText: string
   reason: string
+  /** What the call cost and how long it took. Absent when the response omitted it. */
+  usage?: AiUsage
 }
 
 export interface AiClient {
@@ -114,7 +182,9 @@ Return:
 - confidence: 0-100, how sure you are that BOTH the title and the author are correct.
 - titleAlternates: other lines on the cover that could plausibly be the title, best first.
 - authorAlternates: other lines that could plausibly be the author, best first.
-- rawText: every piece of text you can read on the cover, in reading order, newline separated.
+- rawText: the cover's own text - title, author, series, subtitle - in reading order, newline
+  separated. Keep this under 200 characters: it exists to identify the book, not to
+  transcribe the cover. Leave out blurbs, review quotes and back-cover paragraphs.
 - reason: one short sentence, in plain English, saying how you decided.
 
 Rules:
@@ -255,14 +325,70 @@ function isModelRetired(status: number, body: string): boolean {
   return /model|no longer available|not_found/i.test(body)
 }
 
+/**
+ * A transient "come back shortly" rather than "your request was wrong".
+ *
+ * 429 is the documented rate limit; 503 is the "model is overloaded / high demand" that a
+ * free-tier key sees when Google is busy. Both are worth one retry — the request itself is
+ * fine. 500 and 502 are included because they are retried by every Google client library,
+ * but 501 and 505 are not: those mean the request will never work.
+ */
+function isTransient(status: number): boolean {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504
+}
+
+/**
+ * True when a 400 is complaining specifically about the thinking control.
+ *
+ * The name of this field has changed across model generations, so "this model does not
+ * accept that field" is an expected answer, not a failure — the client drops it and retries
+ * once. Deliberately narrow: a 400 about anything else must not be silently retried.
+ */
+function isThinkingRejected(status: number, body: string): boolean {
+  if (status !== 400) return false
+  return /thinking|thought|thinking_config|thinkingConfig|thinkingBudget|thinking_budget/i.test(body)
+}
+
+/** Reads `Retry-After`, which may be seconds or an HTTP date. Undefined when absent or junk. */
+function retryAfterMs(response: Response): number | undefined {
+  const header = response.headers?.get?.('retry-after')
+  if (!header) return undefined
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+  const date = Date.parse(header)
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined
+}
+
+function readUsage(payload: unknown): AiUsage {
+  const meta = (payload as { usageMetadata?: Record<string, unknown> }).usageMetadata
+  const num = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  if (!meta) return {}
+  return {
+    promptTokens: num(meta.promptTokenCount),
+    outputTokens: num(meta.candidatesTokenCount),
+    thoughtsTokens: num(meta.thoughtsTokenCount),
+    totalTokens: num(meta.totalTokenCount),
+  }
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
 export interface GeminiOptions {
   apiKey: string
   model?: string
   /** Overrides the built-in retirement fallback list. Exposed for tests. */
   fallbackModels?: string[]
   fetcher?: Fetcher
+  /** Total budget for one photo, shared across every attempt. */
   timeoutMs?: number
   endpoint?: string
+  /** Thinking tokens the model may spend. 0 disables it. Exposed for tests. */
+  thinkingBudget?: number
+  /** Retries for a transient 429/503, within the same budget. Exposed for tests. */
+  maxRetries?: number
+  /** Base backoff before a transient retry, doubled per step. Exposed for tests. */
+  retryBackoffMs?: number
 }
 
 /**
@@ -278,17 +404,47 @@ export function createGeminiClient({
   fetcher = fetch,
   timeoutMs = AI_TIMEOUT_MS,
   endpoint = GEMINI_ENDPOINT,
+  thinkingBudget = AI_THINKING_BUDGET,
+  maxRetries = AI_MAX_RETRIES,
+  retryBackoffMs = AI_RETRY_BACKOFF_MS,
 }: GeminiOptions): AiClient {
   if (!apiKey) throw new AiOcrError('no-key', 'No Gemini API key configured')
 
   // The pinned model first, then whichever fallbacks aren't already that same model.
   const models = [model, ...fallbackModels.filter((m) => m !== model)]
 
+  // Sticky for the life of the client. Once a model has told us it does not accept the
+  // thinking control, asking again on every subsequent photo would waste a request per
+  // photo re-learning the same thing.
+  let thinkingSupported = true
+
+  /** Raised internally when a 400 says the thinking field is not accepted. */
+  class ThinkingRejectedError extends Error {}
+
   async function attempt(
     currentModel: string,
-    body: unknown,
+    image: { mimeType: string; data: string },
     signal: AbortSignal,
   ): Promise<AiReading> {
+    const generationConfig: Record<string, unknown> = {
+      // Reading printed text is not a creative task, and a stable answer makes the
+      // benchmark reproducible.
+      temperature: 0,
+      responseMimeType: 'application/json',
+      responseSchema: AI_SCHEMA,
+    }
+    if (thinkingSupported) {
+      generationConfig.thinkingConfig = { thinkingBudget }
+      // Paired with the thinking budget on purpose — see AI_MAX_OUTPUT_TOKENS.
+      generationConfig.maxOutputTokens = AI_MAX_OUTPUT_TOKENS
+    }
+
+    const body = {
+      contents: [{ parts: [{ text: AI_PROMPT }, { inlineData: image }] }],
+      generationConfig,
+    }
+
+    const started = Date.now()
     let response: Response
     try {
       response = await fetcher(`${endpoint}/${currentModel}:generateContent`, {
@@ -313,10 +469,21 @@ export function createGeminiClient({
         // reading immediately rather than spend a second request on it.
         throw new ModelRetiredError(currentModel)
       }
-      throw new AiOcrError(
+      if (thinkingSupported && isThinkingRejected(response.status, text)) {
+        // This model generation names the control differently, or does not have one.
+        // Remember that and retry without it rather than losing the reading over it.
+        thinkingSupported = false
+        throw new ThinkingRejectedError(currentModel)
+      }
+      const error = new AiOcrError(
         classifyStatus(response.status, text),
         `Gemini returned ${response.status}`,
       )
+      if (isTransient(response.status)) {
+        transientHint = retryAfterMs(response)
+        throw Object.assign(error, { transient: true })
+      }
+      throw error
     }
 
     let payload: unknown
@@ -326,49 +493,83 @@ export function createGeminiClient({
       throw new AiOcrError('malformed', 'Gemini returned a body that was not JSON')
     }
 
+    // A response cut off at the token ceiling is not a short answer, it is invalid JSON.
+    // Saying so plainly beats letting parseAiReading report a mystery parse failure.
+    const finish = (payload as { candidates?: { finishReason?: string }[] }).candidates?.[0]
+      ?.finishReason
+    if (finish === 'MAX_TOKENS') {
+      throw new AiOcrError(
+        'malformed',
+        `Gemini hit the ${AI_MAX_OUTPUT_TOKENS}-token ceiling before finishing its answer`,
+      )
+    }
+
     const text = extractText(payload)
     if (text === null) throw new AiOcrError('malformed', 'Gemini returned no text part')
-    return parseAiReading(text)
+    const reading = parseAiReading(text)
+    return {
+      ...reading,
+      usage: { ...readUsage(payload), ms: Date.now() - started, model: currentModel },
+    }
   }
+
+  /** Set by `attempt` from a Retry-After header, consumed by the retry loop below. */
+  let transientHint: number | undefined
 
   return {
     async read(image, options = {}) {
-      const body = {
-        contents: [
-          {
-            parts: [
-              { text: AI_PROMPT },
-              {
-                inlineData: {
-                  mimeType: image.type || 'image/jpeg',
-                  data: await toBase64(image),
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          // Reading printed text is not a creative task, and a stable answer makes the
-          // benchmark reproducible.
-          temperature: 0,
-          responseMimeType: 'application/json',
-          responseSchema: AI_SCHEMA,
-        },
+      const encoded = {
+        mimeType: image.type || 'image/jpeg',
+        data: await toBase64(image),
+      }
+
+      // One deadline for the whole photo, started here and shared by every attempt below:
+      // the two models, the thinking-rejected retry, and any transient backoff all draw
+      // from it. Previously each attempt got a fresh `timeoutMs`, so the real worst case
+      // was a multiple of the number everyone read as the limit.
+      const deadline = Date.now() + timeoutMs
+      const remaining = () => deadline - Date.now()
+
+      const signalFor = (): AbortSignal => {
+        const left = remaining()
+        if (left <= 0) {
+          throw new AiOcrError('timeout', `Gemini did not answer within ${timeoutMs} ms`)
+        }
+        const timeout = AbortSignal.timeout(left)
+        return options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
       }
 
       let lastError: unknown
       for (const currentModel of models) {
-        const timeout = AbortSignal.timeout(timeoutMs)
-        const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
-        try {
-          return await attempt(currentModel, body, signal)
-        } catch (err) {
-          if (err instanceof ModelRetiredError) {
-            lastError = new AiOcrError('server', `Gemini returned 404 for ${currentModel}`)
-            continue
+        let retries = 0
+        // Retries for this model: a transient 429/503, and a one-off retry when the model
+        // turns out not to accept the thinking control.
+        for (;;) {
+          try {
+            return await attempt(currentModel, encoded, signalFor())
+          } catch (err) {
+            if (err instanceof ThinkingRejectedError) {
+              // `thinkingSupported` is already false; the next attempt omits the field.
+              // Not counted against `retries` — nothing was wrong with the request itself.
+              continue
+            }
+            if (err instanceof ModelRetiredError) {
+              lastError = new AiOcrError('server', `Gemini returned 404 for ${currentModel}`)
+              break
+            }
+            const transient = (err as { transient?: boolean }).transient === true
+            const backoff = transientHint ?? retryBackoffMs * 2 ** retries
+            transientHint = undefined
+            // Only worth waiting if the answer can still arrive inside the budget.
+            if (transient && retries < maxRetries && remaining() > backoff + 1000) {
+              retries += 1
+              await sleep(backoff)
+              continue
+            }
+            throw err
           }
-          throw err
         }
+        // `break` above lands here: this model is retired, try the next one.
       }
       // Every model in the list, including the fallback, is retired or unreachable.
       throw lastError instanceof Error
@@ -465,9 +666,10 @@ export async function readWithAi(
   client: AiClient,
   image: Blob,
   options: { signal?: AbortSignal } = {},
-): Promise<{ detection: Detection; rawText: string }> {
+): Promise<{ detection: Detection; rawText: string; usage?: AiUsage }> {
   const reading = await client.read(image, options)
   return {
+    usage: reading.usage,
     detection: {
       title: reading.title ?? '',
       author: reading.author ?? '',

@@ -189,10 +189,26 @@ export function ScanScreen({
                     <span className={`chip ${job.reader === 'ai' ? 'ai' : ''}`}>
                       {job.reader === 'ai' ? 'Read via AI' : 'Read on device'}
                     </span>
+                    {job.ms !== undefined && (
+                      <span className="chip">{(job.ms / 1000).toFixed(1)}s</span>
+                    )}
                     {(job.warnings?.length ?? 0) > 0 && (
                       <span className="small dim">{job.warnings?.[0]}</span>
                     )}
                   </div>
+                )}
+                {/* The numbers that tell the three causes of a slow AI call apart:
+                    thinking, a long answer, or the network. On the card rather than in a
+                    console, because the device this runs on does not have one. */}
+                {job.stage === 'done' && job.usage && (
+                  <span className="tiny faint" data-testid="ai-usage">
+                    {job.usage.model}
+                    {job.usage.ms !== undefined && ` · ${(job.usage.ms / 1000).toFixed(1)}s call`}
+                    {job.usage.thoughtsTokens !== undefined &&
+                      ` · ${job.usage.thoughtsTokens} thinking`}
+                    {job.usage.outputTokens !== undefined && ` · ${job.usage.outputTokens} out`}
+                    {job.usage.promptTokens !== undefined && ` · ${job.usage.promptTokens} in`}
+                  </span>
                 )}
                 {job.fellBack && <span className="tiny faint">{job.fellBack}</span>}
               </div>
