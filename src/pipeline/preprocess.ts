@@ -24,25 +24,6 @@ export const SMALL_LONG_EDGE = 750
 export const THUMB_LONG_EDGE = 400
 export const THUMB_QUALITY = 0.72
 
-/**
- * Long edge of the frame sent to Gemini, and its JPEG quality.
- *
- * Deliberately *not* `OCR_LONG_EDGE`. 1600 is a tesseract number — classical OCR segments
- * glyphs and needs a minimum number of pixels per character. A multimodal model tiles and
- * downsamples internally, so past a point the extra resolution is discarded server-side
- * after the phone has already paid to upload it. Measured on a real cover photo: 1600px at
- * q0.85 is 298 KB, which becomes 397 KB once base64-encoded into the request body; 1280px
- * at q0.8 is 178 KB.
- *
- * 1280 is the conservative step, not the smallest that would work. Cover titles are large
- * type and survive far more aggressive downscaling; author names are often small, and
- * losing those is the quiet failure you notice weeks later. Before going lower, measure it:
- *   GEMINI_API_KEY=... npm run benchmark -- --hard --ai
- *   GEMINI_API_KEY=... npm run benchmark -- --mk --ai
- */
-export const AI_LONG_EDGE = 1280
-export const AI_JPEG_QUALITY = 0.8
-
 export interface Prepared {
   /** The photo, EXIF-corrected and resized, otherwise untouched. */
   raw: ImageData
@@ -61,25 +42,6 @@ export interface Prepared {
   height: number
   /** 400px JPEG, ~40 KB — stored on the book record. */
   thumbnail: Blob
-  /**
-   * The JPEG sent to Gemini, produced only when `PrepareOptions.aiFrame` asks for it.
-   *
-   * Made here, from the same decoded bitmap as the thumbnail, rather than by re-encoding
-   * `raw` afterwards. Re-encoding meant painting the full-size frame onto a canvas and
-   * drawing it down again — measured at 627 ms against 286 ms for a plain encode, so the
-   * scaling cost more CPU than the smaller upload saved. One extra `drawImage` from the
-   * bitmap that is already open costs a fraction of that.
-   */
-  aiFrame?: Blob
-}
-
-export interface PrepareOptions {
-  /**
-   * Also produce `aiFrame`. Off by default: a scan reading covers on the device should not
-   * spend anything encoding a frame for a request it will never make. The routing decision
-   * does not depend on the image, so the caller always knows this before decoding.
-   */
-  aiFrame?: boolean
 }
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement
@@ -301,7 +263,6 @@ export async function prepare(
   blob: Blob,
   longEdge = OCR_LONG_EDGE,
   maxUpscale = MAX_UPSCALE,
-  options: PrepareOptions = {},
 ): Promise<Prepared> {
   const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' })
   try {
@@ -330,6 +291,8 @@ export async function prepare(
     const smallGray = toGrayscale(small)
 
     const grayscale = toGrayscale(raw)
+    const binarised = binarise(grayscale)
+    const flattened = flattenIllumination(grayscale)
 
     const thumbScale = scaleFor(bitmap.width, bitmap.height, THUMB_LONG_EDGE)
     const thumbCanvas = createCanvas(
@@ -342,54 +305,7 @@ export async function prepare(
     thumbCtx.drawImage(bitmap, 0, 0, thumbCanvas.width, thumbCanvas.height)
     const thumbnail = await canvasToBlob(thumbCanvas, THUMB_QUALITY)
 
-    // Drawn straight from the bitmap, while it is still open, for the reason in the
-    // `aiFrame` doc comment above. Never upscaled: a cover photographed at less than
-    // AI_LONG_EDGE gains nothing from being enlarged before upload.
-    let aiFrame: Blob | undefined
-    if (options.aiFrame) {
-      const aiScale = scaleFor(bitmap.width, bitmap.height, AI_LONG_EDGE, 1)
-      const aiCanvas = createCanvas(
-        Math.max(1, Math.round(bitmap.width * aiScale)),
-        Math.max(1, Math.round(bitmap.height * aiScale)),
-      )
-      const aiCtx = context2d(aiCanvas)
-      aiCtx.imageSmoothingEnabled = true
-      aiCtx.imageSmoothingQuality = 'high'
-      aiCtx.drawImage(bitmap, 0, 0, aiCanvas.width, aiCanvas.height)
-      aiFrame = await canvasToBlob(aiCanvas, AI_JPEG_QUALITY)
-    }
-
-    // `binarised` and `flattened` are computed on first access rather than eagerly.
-    //
-    // Both are tesseract-only, and both are expensive: measured on a 4x-throttled phone
-    // profile, `binarise` is ~180 ms and `flattenIllumination` ~800 ms of a ~2.7 s
-    // `prepare()`. When Gemini reads the cover, nothing ever touches them — so eagerly
-    // computing them spent a second per photo, on the main thread, producing images that
-    // were thrown away, and pinned ~13 MB of `ImageData` for the whole network wait.
-    //
-    // Deferring rather than skipping keeps `Prepared` the same shape and keeps the OCR
-    // fallback working unchanged: `readImage` reads these properties and gets exactly the
-    // same pixels it always did, just computed a moment later. Both are memoised, so a
-    // multi-pass read still computes each one once.
-    let binarisedCache: ImageData | undefined
-    let flattenedCache: ImageData | undefined
-
-    return {
-      raw,
-      small,
-      smallGray,
-      grayscale,
-      width,
-      height,
-      thumbnail,
-      aiFrame,
-      get binarised() {
-        return (binarisedCache ??= binarise(grayscale))
-      },
-      get flattened() {
-        return (flattenedCache ??= flattenIllumination(grayscale))
-      },
-    }
+    return { raw, small, smallGray, binarised, grayscale, flattened, width, height, thumbnail }
   } finally {
     bitmap.close()
   }
@@ -494,4 +410,3 @@ export async function encodeJpeg(image: ImageData, quality = 0.85): Promise<Blob
   context2d(canvas).putImageData(image, 0, 0)
   return canvasToBlob(canvas, quality)
 }
-

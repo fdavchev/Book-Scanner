@@ -8,7 +8,7 @@
     <p>Dev-only harness. <code>npm run benchmark</code> drives this page with Playwright.</p>
     <pre id="log"></pre>
     <script type="module">
-      import { prepare } from '/src/pipeline/preprocess.ts'
+      import { encodeJpeg, prepare } from '/src/pipeline/preprocess.ts'
       import { TesseractPool, readImage } from '/src/pipeline/ocr.ts'
       import {
         createGeminiClient,
@@ -70,10 +70,9 @@
         async runAi(base64, options = {}) {
           const blob = base64ToBlob(base64, options.type)
           const started = performance.now()
-          // The resized colour frame, not the binarised one — the same choice the app
-          // makes, produced the same way, so the benchmark measures what actually ships.
-          const prepared = await prepare(blob, undefined, undefined, { aiFrame: true })
-          const jpeg = prepared.aiFrame
+          const prepared = await prepare(blob)
+          // The resized colour frame, not the binarised one — the same choice the app makes.
+          const jpeg = await encodeJpeg(prepared.raw)
           let detection
           let rawText = ''
           let failed

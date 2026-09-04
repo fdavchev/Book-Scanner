@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { assessQuality, prepare } from '../pipeline/preprocess'
+import { assessQuality, encodeJpeg, prepare } from '../pipeline/preprocess'
 import { TesseractPool, readImage, type LanguageCode } from '../pipeline/ocr'
 import { detect, hypotheses } from '../pipeline/candidates'
 import { shouldLookUp } from '../pipeline/enrich'
@@ -16,9 +16,19 @@ import {
   readWithAi,
   type AiClient,
   type AiFailureKind,
-  type AiUsage,
 } from '../pipeline/ai-ocr'
 import type { Detection, Hypothesis, OcrResult } from '../pipeline/types'
+
+/**
+ * A pause before each AI call after the first, so a 3-4 photo batch does not fire
+ * consecutive requests at Gemini fast enough to trip its "high demand" 503s. Only applies
+ * between AI calls — a photo that fell back to on-device reading costs nothing here.
+ */
+const AI_THROTTLE_MS = 1500
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export type JobStage = 'queued' | 'preparing' | 'reading' | 'matching' | 'done' | 'failed'
 
@@ -38,14 +48,6 @@ export interface ScanJob {
   /** Advice about the photo itself, when it is the problem. */
   warnings?: string[]
   error?: string
-  /** How long this photo took end to end, from decode to detection. */
-  ms?: number
-  /**
-   * What the AI call cost, when there was one. Shown on the card rather than logged: the
-   * three causes of a slow scan — thinking, a long answer, and the network — are otherwise
-   * indistinguishable, and they call for different fixes.
-   */
-  usage?: AiUsage
 }
 
 export interface ScanOptions {
@@ -84,15 +86,11 @@ const STAGE_DETAIL: Record<JobStage, string> = {
  *
  * Images are processed strictly one at a time. On a phone that is not a limitation but
  * the point: iOS Safari enforces a per-tab memory ceiling, and decoding a whole gallery
- * selection at once is the reliable way to have the tab killed mid-scan.
- *
- * The AI calls are sequential for the same reason, though the margin is now wider than it
- * was: deferring `binarised` and `flattened` took ~13 MB per in-flight photo off the heap,
- * so a photo waiting on Gemini pins `raw`, `grayscale` and the small pair rather than six
- * full buffers. Overlapping requests is therefore closer to safe than it used to be — but
- * it is still several photos' worth of decoded `ImageData` held at once purely so the
- * tesseract fallback has something to read, and that is the failure that kills the tab
- * outright rather than merely making a scan slow. Measure the ceiling before trading it.
+ * selection at once is the reliable way to have the tab killed mid-scan. That constraint
+ * is also why the AI calls are sequential — the plan floated firing two or three at once,
+ * but overlapping them means holding several photos' worth of decoded ImageData so the
+ * tesseract fallback still has something to read, which is precisely what the ceiling
+ * forbids. The saving would have been a few seconds on a four-photo batch.
  */
 export function useScanner(): ScannerApi {
   const [jobs, setJobs] = useState<ScanJob[]>([])
@@ -102,12 +100,6 @@ export function useScanner(): ScannerApi {
   const [aiFailure, setAiFailure] = useState<AiFailureKind>()
   const poolRef = useRef<TesseractPool>(null)
   const poolLanguagesRef = useRef<string>('')
-  // The in-flight creation, so a background warm-up and a later fallback share one download.
-  const poolPromiseRef = useRef<Promise<TesseractPool> | null>(null)
-  // Engine download progress is always recorded; whether it is shown depends on whether
-  // anything is actually waiting for it. See `ensurePool` / `warmPool`.
-  const engineProgressRef = useRef(0)
-  const showEngineProgressRef = useRef(false)
   // One cache for the life of the app: scanning a shelf asks the catalogue the same
   // questions repeatedly, and a remembered answer needs no network at all.
   const cacheRef = useRef(createLookupCache<OpenLibraryDoc>())
@@ -141,68 +133,19 @@ export function useScanner(): ScannerApi {
        * cold install that pool is a 30 MB download. It is still created the instant one
        * photo needs it, including a photo that needs it only because the AI call failed
        * halfway through the batch.
-       *
-       * The in-flight promise is held, not just the finished pool, so that starting it in
-       * the background (see `warmPool`) and then awaiting it on the fallback path share one
-       * download rather than racing to create two.
        */
-      const languageKey = options.languages.join('+')
-      // Whether anyone is actually waiting on the engine. A background warm-up must not put
-      // a progress bar on screen — the user is watching an AI scan, and "starting the text
-      // recogniser" would be a lie about what is happening — but if the fallback later ends
-      // up waiting on that same download, the bar has to appear mid-flight. So progress is
-      // always recorded and only conditionally displayed.
-      engineProgressRef.current = 0
-      showEngineProgressRef.current = false
-
-      const startPool = (): Promise<TesseractPool> => {
-        poolLanguagesRef.current = languageKey
-        const previous = poolRef.current
-        const promise = (async () => {
-          await previous?.terminate()
-          const pool = await TesseractPool.create(options.languages, undefined, (fraction) => {
-            engineProgressRef.current = fraction
-            if (showEngineProgressRef.current) setLoadingEngine(fraction)
-          })
-          poolRef.current = pool
+      const ensurePool = async (): Promise<TesseractPool> => {
+        const languageKey = options.languages.join('+')
+        if (!poolRef.current || poolLanguagesRef.current !== languageKey) {
+          await poolRef.current?.terminate()
+          setLoadingEngine(0)
+          poolRef.current = await TesseractPool.create(options.languages, undefined, (f) =>
+            setLoadingEngine(f),
+          )
+          poolLanguagesRef.current = languageKey
           setLoadingEngine(undefined)
-          return pool
-        })()
-        poolPromiseRef.current = promise
-        // A failed warm-up must not poison the fallback path — drop it so the real call
-        // retries, where its error is surfaced properly instead of silently reused.
-        promise.catch(() => {
-          if (poolPromiseRef.current === promise) {
-            poolPromiseRef.current = null
-            poolLanguagesRef.current = ''
-          }
-        })
-        return promise
-      }
-
-      const ensurePool = (): Promise<TesseractPool> => {
-        const ready = poolPromiseRef.current && poolLanguagesRef.current === languageKey
-        // Someone is waiting now, so show whatever the download has reached — including a
-        // warm-up already in flight, which would otherwise finish behind a frozen bar.
-        showEngineProgressRef.current = true
-        if (!poolRef.current) setLoadingEngine(engineProgressRef.current)
-        return ready ? poolPromiseRef.current! : startPool()
-      }
-
-      /**
-       * Starts the engine download alongside the first AI request, without waiting for it.
-       *
-       * Without this the failure path is three waits stacked: the full AI timeout, then a
-       * ~30 MB engine download the user never expected, then the OCR read itself. Starting
-       * it now means the download overlaps the network wait, and costs nothing when the AI
-       * call succeeds — a warmed pool is simply left unused.
-       */
-      const warmPool = () => {
-        if (poolPromiseRef.current && poolLanguagesRef.current === languageKey) return
-        startPool().catch(() => {
-          // Nothing to report: this is speculative work, and the fallback path surfaces any
-          // real failure when it actually needs the engine.
-        })
+        }
+        return poolRef.current
       }
 
       let ai: AiClient | undefined
@@ -217,26 +160,22 @@ export function useScanner(): ScannerApi {
 
       try {
         const scanned: ScannedImage[] = []
+        // Tracks whether an AI request has already gone out this batch, so the throttle
+        // only ever waits between AI calls — never before the first one, and never when a
+        // photo used on-device reading instead.
+        let aiCallsSoFar = 0
         for (const [index, file] of files.entries()) {
           const job = initial[index]
-          const startedAt = Date.now()
           try {
             update(job.id, { stage: 'preparing', detail: STAGE_DETAIL.preparing })
+            const prepared = await prepare(file)
+            const quality = assessQuality(prepared.grayscale)
 
-            // Decided before the photo is decoded, not after: the routing inputs are the
-            // mode, the key and connectivity, none of which depend on the image. Knowing
-            // it first lets `prepare` produce the scaled upload frame from the bitmap it
-            // already has open, and skip it entirely on an on-device scan.
             const wanted = chooseReader({
               mode: options.aiMode,
               hasKey: Boolean(ai),
               online: options.online,
             })
-
-            const prepared = await prepare(file, undefined, undefined, {
-              aiFrame: wanted === 'ai',
-            })
-            const quality = assessQuality(prepared.grayscale)
 
             let detection: Detection | undefined
             let rawText = ''
@@ -244,29 +183,31 @@ export function useScanner(): ScannerApi {
             let evidence: OcrResult | undefined
             let reader: ReaderChoice = 'ocr'
             let fellBack: string | undefined
-            let usage: AiUsage | undefined
 
             if (wanted === 'ai' && ai) {
+              if (aiCallsSoFar > 0) {
+                update(job.id, {
+                  stage: 'reading',
+                  detail: 'pausing briefly before the next AI request',
+                  reader: 'ai',
+                  warnings: quality.warnings,
+                })
+                await sleep(AI_THROTTLE_MS)
+              }
+              aiCallsSoFar += 1
               update(job.id, {
                 stage: 'reading',
                 detail: 'reading the cover with AI',
                 reader: 'ai',
                 warnings: quality.warnings,
               })
-              // Speculative, and free when the AI call succeeds: this is the only chance to
-              // overlap the engine download with a wait the user is already having.
-              warmPool()
               try {
-                // The *colour* frame, not the binarised one: thresholding was tuned for
-                // tesseract and only throws away information a multimodal model uses. It is
-                // also scaled down — `prepared.raw` stays full size, so the on-device
-                // fallback below still reads the image it was tuned for.
-                const jpeg = prepared.aiFrame
-                if (!jpeg) throw new AiOcrError('malformed', 'No frame was prepared for the AI')
+                // The resized *colour* frame, not the binarised one: thresholding was tuned
+                // for tesseract and only throws away information a multimodal model uses.
+                const jpeg = await encodeJpeg(prepared.raw)
                 const outcome = await readWithAi(ai, jpeg)
                 detection = outcome.detection
                 rawText = outcome.rawText
-                usage = outcome.usage
                 const synthesised = evidenceFromAi(rawText, detection)
                 evidence = synthesised.result
                 ranked = synthesised.ranked
@@ -335,8 +276,6 @@ export function useScanner(): ScannerApi {
               confidence: detection.confidence,
               reader,
               fellBack,
-              ms: Date.now() - startedAt,
-              usage,
               // Only worth mentioning when the result is poor; a blurry photo that still
               // came out right is not something to nag about.
               warnings: detection.confidence < 55 ? quality.warnings : [],
