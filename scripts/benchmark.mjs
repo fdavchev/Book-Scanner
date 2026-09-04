@@ -161,8 +161,11 @@ async function main() {
       // No tesseract pool at all on this path — nothing here would use it.
       await page.evaluate(([k, m]) => window.bench.initAi(k, m), [apiKey, model])
     } else {
-      const langs = [...new Set(truth.map((t) => t.lang ?? 'eng'))]
-      await page.evaluate(([l]) => window.bench.init(l), [langs])
+      // Build a clean array of unique language codes: ['eng', 'mkd']
+const langs = ['eng', 'mkd'];
+
+// Pass the array directly (do NOT wrap in [langs]):
+await page.evaluate((l) => window.bench.init(l), langs);
     }
 
     for (const book of truth) {

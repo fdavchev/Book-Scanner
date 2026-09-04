@@ -2,10 +2,13 @@
   "summary": {
     "covers": 18,
     "degraded": false,
-    "titleExact": 12,
-    "titleFuzzy": 13,
+    "reader": "tesseract",
+    "aiFailures": 0,
+    "confidentlyWrong": 3,
+    "titleExact": 11,
+    "titleFuzzy": 12,
     "authorHit": 12,
-    "medianMs": 463,
+    "medianMs": 856,
     "medianThumbKb": 5
   },
   "rows": [
@@ -21,9 +24,9 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 439,
+      "ms": 1013,
       "lineCount": 3,
-      "thumbnailBytes": 4853
+      "thumbnailBytes": 4830
     },
     {
       "id": "blurry",
@@ -36,10 +39,10 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 96,
-      "meanConfidence": 94,
-      "ms": 373,
+      "meanConfidence": 93,
+      "ms": 783,
       "lineCount": 3,
-      "thumbnailBytes": 5781
+      "thumbnailBytes": 5766
     },
     {
       "id": "very-blurry",
@@ -52,10 +55,10 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 80,
-      "meanConfidence": 91,
-      "ms": 343,
+      "meanConfidence": 93,
+      "ms": 598,
       "lineCount": 2,
-      "thumbnailBytes": 4230
+      "thumbnailBytes": 4220
     },
     {
       "id": "angled",
@@ -69,7 +72,7 @@
       "authorHit": false,
       "confidence": 59,
       "meanConfidence": 95,
-      "ms": 463,
+      "ms": 790,
       "lineCount": 3,
       "thumbnailBytes": 6354
     },
@@ -83,9 +86,9 @@
       "titleFuzzy": false,
       "titleSimilarity": 0.54,
       "authorHit": true,
-      "confidence": 67,
-      "meanConfidence": 93,
-      "ms": 720,
+      "confidence": 66,
+      "meanConfidence": 81,
+      "ms": 1438,
       "lineCount": 3,
       "thumbnailBytes": 6306
     },
@@ -99,9 +102,9 @@
       "titleFuzzy": false,
       "titleSimilarity": 0.44,
       "authorHit": false,
-      "confidence": 40,
-      "meanConfidence": 61,
-      "ms": 1719,
+      "confidence": 47,
+      "meanConfidence": 64,
+      "ms": 1991,
       "lineCount": 6,
       "thumbnailBytes": 5735
     },
@@ -117,9 +120,9 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 416,
+      "ms": 776,
       "lineCount": 3,
-      "thumbnailBytes": 3908
+      "thumbnailBytes": 3884
     },
     {
       "id": "harsh-glare",
@@ -131,11 +134,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 0.96,
       "authorHit": false,
-      "confidence": 79,
-      "meanConfidence": 84,
-      "ms": 483,
+      "confidence": 75,
+      "meanConfidence": 83,
+      "ms": 822,
       "lineCount": 5,
-      "thumbnailBytes": 4609
+      "thumbnailBytes": 4583
     },
     {
       "id": "low-resolution",
@@ -149,9 +152,9 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 1063,
-      "lineCount": 2,
-      "thumbnailBytes": 4814
+      "ms": 745,
+      "lineCount": 3,
+      "thumbnailBytes": 4774
     },
     {
       "id": "title-only",
@@ -165,9 +168,9 @@
       "authorHit": false,
       "confidence": 87,
       "meanConfidence": 95,
-      "ms": 1488,
+      "ms": 1659,
       "lineCount": 1,
-      "thumbnailBytes": 3642
+      "thumbnailBytes": 3630
     },
     {
       "id": "author-prominent",
@@ -181,9 +184,9 @@
       "authorHit": false,
       "confidence": 84,
       "meanConfidence": 96,
-      "ms": 388,
+      "ms": 643,
       "lineCount": 2,
-      "thumbnailBytes": 5060
+      "thumbnailBytes": 5045
     },
     {
       "id": "title-illegible",
@@ -197,9 +200,9 @@
       "authorHit": true,
       "confidence": 77,
       "meanConfidence": 95,
-      "ms": 435,
+      "ms": 762,
       "lineCount": 3,
-      "thumbnailBytes": 3493
+      "thumbnailBytes": 3482
     },
     {
       "id": "similar-title-a",
@@ -213,9 +216,9 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 449,
+      "ms": 856,
       "lineCount": 3,
-      "thumbnailBytes": 4741
+      "thumbnailBytes": 4716
     },
     {
       "id": "similar-title-b",
@@ -229,41 +232,41 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 463,
+      "ms": 969,
       "lineCount": 3,
-      "thumbnailBytes": 5387
+      "thumbnailBytes": 5363
     },
     {
       "id": "macedonian",
       "expectedTitle": "Тврдина",
       "expectedAuthor": "Славко Јаневски",
       "gotTitle": "Тврдина",
-      "gotAuthor": "Славко Јаневски",
+      "gotAuthor": "Славко Јаневсеки",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 76,
-      "meanConfidence": 96,
-      "ms": 415,
-      "lineCount": 2,
-      "thumbnailBytes": 3649
+      "confidence": 57,
+      "meanConfidence": 84,
+      "ms": 750,
+      "lineCount": 3,
+      "thumbnailBytes": 3629
     },
     {
       "id": "macedonian-latin-author",
       "expectedTitle": "Пиреј",
       "expectedAuthor": "Petre M. Andreevski",
-      "gotTitle": "Пиреј",
-      "gotAuthor": "Petre М. Andreevski",
-      "titleExact": true,
-      "titleFuzzy": true,
-      "titleSimilarity": 1,
+      "gotTitle": "ITupej",
+      "gotAuthor": "Petre M. Andreevski",
+      "titleExact": false,
+      "titleFuzzy": false,
+      "titleSimilarity": 0,
       "authorHit": true,
-      "confidence": 68,
-      "meanConfidence": 93,
-      "ms": 459,
-      "lineCount": 2,
-      "thumbnailBytes": 3440
+      "confidence": 66,
+      "meanConfidence": 85,
+      "ms": 2419,
+      "lineCount": 3,
+      "thumbnailBytes": 3426
     },
     {
       "id": "noisy-blurbs",
@@ -277,9 +280,9 @@
       "authorHit": true,
       "confidence": 88,
       "meanConfidence": 95,
-      "ms": 688,
-      "lineCount": 9,
-      "thumbnailBytes": 6605
+      "ms": 2026,
+      "lineCount": 11,
+      "thumbnailBytes": 6519
     },
     {
       "id": "unreadable",
@@ -293,7 +296,7 @@
       "authorHit": false,
       "confidence": 0,
       "meanConfidence": 39,
-      "ms": 7784,
+      "ms": 5665,
       "lineCount": 2,
       "thumbnailBytes": 5895
     }

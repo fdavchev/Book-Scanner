@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const nm = join(root, 'node_modules')
 const out = join(root, 'public', 'tesseract')
+const overrideDir = join(root, 'custom-traineddata')
 
 /** Recursively collect files under `dir` whose name passes `match`. */
 async function findFiles(dir, match, found = []) {
@@ -70,13 +71,14 @@ const core = await copyInto(cores, join(out, 'core'))
 
 // 3 — language data, English and Macedonian
 const langs = []
-for (const pkg of ['eng', 'mkd']) {
+for (const pkg of ['eng', 'mkd']) {  // Prefer a hand-fine-tuned model checked into the repo, if present.
+ 
+
+  // Fall back to the npm-vendored tessdata_best package, as before.
   const files = await findFiles(
     join(nm, '@tesseract.js-data', pkg),
     (n) => n === `${pkg}.traineddata.gz` || n === `${pkg}.traineddata`,
   )
-  // Prefer the "best_int" model over "fast": book covers use display type, and the
-  // accuracy difference there is the difference between a usable title and noise.
   const pick =
     files.find((f) => /best/.test(f)) ?? files.find((f) => f.endsWith('.gz')) ?? files[0]
   if (pick) langs.push(pick)

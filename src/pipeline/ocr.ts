@@ -13,8 +13,8 @@ export const BASE_URL = import.meta.env.BASE_URL
 
 export const OCR_PATHS = {
   workerPath: `${BASE_URL}tesseract/worker.min.js`,
-  corePath: `${BASE_URL}tesseract/core`,
-  langPath: `${BASE_URL}tesseract/lang`,
+corePath: `${BASE_URL}tesseract/core/tesseract-core.wasm.js`,
+langPath: `${BASE_URL}tesseract/lang`,
 } as const
 
 export type LanguageCode = 'eng' | 'mkd'
