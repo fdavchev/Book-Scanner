@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-29T15:50:35.478Z",
+  "generated": "2026-09-04T20:41:26.902Z",
   "worker": [
     "tesseract/worker.min.js"
   ],
@@ -20,8 +20,8 @@
     {
       "code": "mkd",
       "url": "tesseract/lang/mkd.traineddata.gz",
-      "bytes": 719182
+      "bytes": 1238617
     }
   ],
-  "totalBytes": 29561188
+  "totalBytes": 30080623
 }
