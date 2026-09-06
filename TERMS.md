@@ -1,4 +1,4 @@
-# Terms of Service
+# Terms of Use
 
 _Last updated: 6 September 2026_
 
