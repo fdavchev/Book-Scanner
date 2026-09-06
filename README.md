@@ -185,11 +185,11 @@ Each run writes a `docs/accuracy-<set>-<online|offline>.md` with per-cover resul
 How the scanner was rebuilt, and the before/after numbers:
 [`docs/scanner-rebuild.md`](docs/scanner-rebuild.md).
 
-| Set | Title exact | Author found | Confidently wrong |
-|---|---|---|---|
-| Clean covers at photo resolution | **15/15** | **15/15** | **0/15** |
-| 18 deliberately difficult covers (blur, angles, glare, dim light, Cyrillic) | **14/18** | **15/18** | 2/18 |
-| Real Open Library artwork, 300×500 thumbnails | 8/15 | 9/15 | **0/15** |
+| Set                                                                         | Title exact | Author found | Confidently wrong |
+| --------------------------------------------------------------------------- | ----------- | ------------ | ----------------- |
+| Clean covers at photo resolution                                            | **15/15**   | **15/15**    | **0/15**          |
+| 18 deliberately difficult covers (blur, angles, glare, dim light, Cyrillic) | **12/18**   | **12/18**    | 2/18              |
+| Real Open Library artwork, 300×500 thumbnails                               | 8/15        | 9/15         | **0/15**          |
 
 "Confidently wrong" — a wrong book reported at 60% confidence or more — is the number that
 matters most, because those are the answers you would accept without checking. It was 8/15
