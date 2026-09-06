@@ -8,7 +8,7 @@
     "titleExact": 12,
     "titleFuzzy": 13,
     "authorHit": 12,
-    "medianMs": 1128,
+    "medianMs": 1250,
     "medianThumbKb": 5
   },
   "rows": [
@@ -24,7 +24,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 1353,
+      "ms": 1402,
       "lineCount": 3,
       "thumbnailBytes": 4853
     },
@@ -40,7 +40,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 94,
-      "ms": 990,
+      "ms": 1002,
       "lineCount": 3,
       "thumbnailBytes": 5781
     },
@@ -56,7 +56,7 @@
       "authorHit": true,
       "confidence": 80,
       "meanConfidence": 91,
-      "ms": 749,
+      "ms": 1215,
       "lineCount": 2,
       "thumbnailBytes": 4230
     },
@@ -72,7 +72,7 @@
       "authorHit": false,
       "confidence": 59,
       "meanConfidence": 95,
-      "ms": 1046,
+      "ms": 1326,
       "lineCount": 3,
       "thumbnailBytes": 6354
     },
@@ -88,7 +88,7 @@
       "authorHit": true,
       "confidence": 67,
       "meanConfidence": 93,
-      "ms": 1443,
+      "ms": 1465,
       "lineCount": 3,
       "thumbnailBytes": 6306
     },
@@ -104,7 +104,7 @@
       "authorHit": false,
       "confidence": 40,
       "meanConfidence": 61,
-      "ms": 2757,
+      "ms": 2778,
       "lineCount": 6,
       "thumbnailBytes": 5735
     },
@@ -120,7 +120,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 983,
+      "ms": 1003,
       "lineCount": 3,
       "thumbnailBytes": 3908
     },
@@ -136,7 +136,7 @@
       "authorHit": false,
       "confidence": 79,
       "meanConfidence": 84,
-      "ms": 1051,
+      "ms": 1048,
       "lineCount": 5,
       "thumbnailBytes": 4609
     },
@@ -152,7 +152,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 3016,
+      "ms": 3020,
       "lineCount": 2,
       "thumbnailBytes": 4814
     },
@@ -168,7 +168,7 @@
       "authorHit": false,
       "confidence": 87,
       "meanConfidence": 95,
-      "ms": 2147,
+      "ms": 2140,
       "lineCount": 1,
       "thumbnailBytes": 3642
     },
@@ -184,7 +184,7 @@
       "authorHit": false,
       "confidence": 84,
       "meanConfidence": 96,
-      "ms": 806,
+      "ms": 822,
       "lineCount": 2,
       "thumbnailBytes": 5060
     },
@@ -200,7 +200,7 @@
       "authorHit": true,
       "confidence": 77,
       "meanConfidence": 95,
-      "ms": 954,
+      "ms": 953,
       "lineCount": 3,
       "thumbnailBytes": 3493
     },
@@ -216,7 +216,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 1128,
+      "ms": 1113,
       "lineCount": 3,
       "thumbnailBytes": 4741
     },
@@ -232,7 +232,7 @@
       "authorHit": true,
       "confidence": 96,
       "meanConfidence": 96,
-      "ms": 1245,
+      "ms": 1250,
       "lineCount": 3,
       "thumbnailBytes": 5387
     },
@@ -248,7 +248,7 @@
       "authorHit": true,
       "confidence": 76,
       "meanConfidence": 96,
-      "ms": 775,
+      "ms": 771,
       "lineCount": 2,
       "thumbnailBytes": 3649
     },
@@ -264,7 +264,7 @@
       "authorHit": true,
       "confidence": 68,
       "meanConfidence": 93,
-      "ms": 1008,
+      "ms": 1012,
       "lineCount": 2,
       "thumbnailBytes": 3440
     },
@@ -280,7 +280,7 @@
       "authorHit": true,
       "confidence": 88,
       "meanConfidence": 95,
-      "ms": 2625,
+      "ms": 2608,
       "lineCount": 9,
       "thumbnailBytes": 6605
     },
@@ -296,7 +296,7 @@
       "authorHit": false,
       "confidence": 0,
       "meanConfidence": 39,
-      "ms": 7357,
+      "ms": 7430,
       "lineCount": 2,
       "thumbnailBytes": 5895
     }

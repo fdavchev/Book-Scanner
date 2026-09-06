@@ -226,6 +226,10 @@ of pixels wide, which is the case the app is actually used in.
 - Re-running the Open Library match later on books saved offline, using the raw OCR text
   already kept on each record.
 
+## Terms
+
+By using this app you agree to the [Terms of Service](TERMS.md).
+
 ## Licence
 
 Personal project, no licence chosen.

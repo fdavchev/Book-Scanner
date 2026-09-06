@@ -142,3 +142,113 @@ A full pass over the UI, not a reskin:
 
 Every `data-testid`, ARIA role name and form label the end-to-end tests rely on was kept
 deliberately, so the redesign did not require rewriting the test suite.
+
+## Session — 2026-09-06: OSD fix, Macedonian fine-tuning shelved
+
+### TL;DR
+Set out to fine-tune `mkd.traineddata` because Macedonian covers looked broken.
+Root cause turned out to be a missing `osd.traineddata` file, not the language
+model. Fixed in one line. Macedonian is now passing. Fine-tuning is shelved
+unless a new benchmark run shows a genuine, repeatable Macedonian-specific
+failure that isn't explained by something simpler.
+
+### What was actually wrong
+`npm run benchmark -- --hard --diagnose <fixture>` was printing this on every
+single scan, for every fixture, in every language:
+```
+[page] Error opening data file ./osd.traineddata
+[page] Failed loading language 'osd'
+[page] Warning: Auto orientation and script detection requested, but osd language failed to load
+```
+`osd` (Orientation and Script Detection) is a separate small Tesseract model
+used before recognition to detect rotation/script. It was never vendored —
+`scripts/vendor-ocr.mjs` only ever copied `eng` and `mkd`. One of the pipeline's
+own OCR passes (`PSM.SPARSE_TEXT_OSD` in `src/pipeline/ocr.ts`, in
+`PASS_SCHEDULE`) was silently failing to get the model it needed on every run.
+
+### The fix (2 changes, already pushed)
+1. `npm install "@tesseract.js-data/osd"` — added as a dependency, same
+   package family as the existing `eng`/`mkd` data.
+2. `scripts/vendor-ocr.mjs` — added `'osd'` to the language copy loop
+   (`for (const pkg of ['eng', 'mkd', 'osd'])`), so it lands in
+   `public/tesseract/lang/osd.traineddata.gz` alongside the others.
+3. `src/pipeline/ocr.ts` — the `langs` string built for `createWorker` now
+   always appends `+osd`, so every worker in the pool has the OSD model loaded
+   and available whenever a pass requests `PSM.SPARSE_TEXT_OSD`.
+
+### Measured effect (offline, no Open Library lookup — the fair comparison)
+Comparing the raw `--diagnose` runs before/after, fixture by fixture:
+
+| Fixture | Before | After |
+|---|---|---|
+| `macedonian-latin-author` | **miss** — `"ITupej"` (garbage) | **exact** — `"Пиреј"` |
+| `macedonian` | exact, author garbled `"JaHEBCKH"` | exact, author correct `"Јаневски"` |
+| everything else | unchanged | unchanged |
+
+Full offline hard-set score went **10/18 → 12/18** title-exact. This is the
+number to trust for future comparisons — see gotcha below.
+
+### Gotcha to remember for next time
+`npm run benchmark -- --hard --lookup` (online, with Open Library
+corroboration) scores noticeably higher than the plain offline run, because
+the catalogue can guess the right title even from badly garbled OCR text
+(e.g. it correctly resolved `"unishment Fyodor Dostoevsky"` to "Crime and
+Punishment" even though the OCR itself never improved on that fixture). Do
+NOT compare an online run against an offline baseline — it looks like a
+regression or improvement that isn't real. Always compare
+`docs/accuracy-hard-offline.md` against `docs/accuracy-hard-offline.md`.
+
+### Still genuinely broken (not touched this session)
+- `angled`, `steep-angle`, `tilted` — all still `miss`, identical text output
+  before and after the OSD fix. This is NOT an OSD problem: OSD only corrects
+  90°-increment rotation (upside down / sideways), not a few-degrees tilt.
+  This needs an actual deskew step (measure + correct small rotation angle)
+  in preprocessing — separate piece of work, unrelated to language/Cyrillic.
+- `harsh-glare` — author truncated to "Oscar" instead of "Oscar Wilde", title
+  has a corrupted character (`Pic' ure`). Likely a contrast/glare
+  normalization issue in `preprocess.ts`, not language-related either.
+- `unreadable` fixture flipped from miss→"exact" between runs, but this looks
+  like scoring-definition noise (both runs detected nothing useful) rather
+  than a real change — worth checking how "exact" is scored when expected
+  title/author are both empty strings.
+
+### Macedonian fine-tuning pipeline — status: shelved, not deleted
+A full Docker-based `tesstrain` fine-tuning pipeline was built this session
+(Dockerfile + scripts) in case the LSTM model itself needed retraining on
+book-cover typography. It's parked, unused, because the actual problem was
+the OSD bug above, not the language model. Keeping the files around in case
+a future benchmark run surfaces a real, repeatable Macedonian-specific
+failure that isn't explained by something simpler (preprocessing, OSD,
+deskew, etc. — check those first, they've had a much better hit rate this
+session than "the model needs fine-tuning" did).
+
+Files, not yet committed into the repo (sitting outside it, ask Filip/Claude
+if picking this back up):
+- `Dockerfile` — Ubuntu 24.04 + Tesseract built from source with training
+  tools + Node 20 + Playwright/Chromium
+- `docker-train.sh` — runs inside the container: clones `tesstrain`, fetches
+  base `mkd.traineddata` from `tessdata_best`, generates ground truth, runs
+  `lstmtraining`, finalizes into `/work/output/mkd.traineddata(.gz)`
+- `make-mkd-ground-truth.mjs` — Playwright-based line-crop ground-truth
+  generator, sources real title/author pairs from Open Library
+  (`language=mac` confirmed as the correct code empirically — NOT `mkd`,
+  despite `mkd` being the ISO 639-2 terminology code)
+- `vendor-ocr.patch.mjs` — patch for `scripts/vendor-ocr.mjs` to let a
+  fine-tuned model at `custom-traineddata/mkd.traineddata.gz` override the
+  npm-vendored one, surviving `npm install`
+
+If picking this back up: don't skip straight to Docker again — first add
+`--diagnose` output for whatever the new suspected Macedonian failure is,
+confirm it's not explained by preprocessing/OSD/deskew, THEN consider
+fine-tuning as a last resort. It's expensive (Docker image build alone is
+15-40 min) and this session is direct evidence the model itself is probably
+fine.
+
+### Next candidate tasks, roughly in order of likely value
+1. Deskew for `angled`/`steep-angle`/`tilted` (3/18 fixtures, clear common
+   cause, code change is localized to preprocessing)
+2. Glare/contrast handling for `harsh-glare` (title corruption + truncated
+   author)
+3. Re-run `npm run benchmark -- --hard` (offline) and `--real --lookup`
+   periodically to keep README's accuracy table current — it had drifted out
+   of sync with actual measured numbers before this session started
