@@ -71,7 +71,7 @@ const core = await copyInto(cores, join(out, 'core'))
 
 // 3 — language data, English and Macedonian
 const langs = []
-for (const pkg of ['eng', 'mkd']) {  // Prefer a hand-fine-tuned model checked into the repo, if present.
+for (const pkg of ['eng', 'mkd', 'osd']) {  // Prefer a hand-fine-tuned model checked into the repo, if present.
  
 
   // Fall back to the npm-vendored tessdata_best package, as before.

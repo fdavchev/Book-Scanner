@@ -137,7 +137,7 @@ export class TesseractPool implements OcrEngine {
     onProgress?: (fraction: number) => void,
     paths: Partial<typeof OCR_PATHS> = {},
   ): Promise<TesseractPool> {
-    const langs = languages.length > 0 ? languages.join('+') : 'eng'
+    const langs = (languages.length > 0 ? languages.join('+') : 'eng') + '+osd'
     const workers: Worker[] = []
     for (let i = 0; i < size; i++) {
       workers.push(

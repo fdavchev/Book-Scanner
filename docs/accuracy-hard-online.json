@@ -4,11 +4,11 @@
     "degraded": false,
     "reader": "tesseract",
     "aiFailures": 0,
-    "confidentlyWrong": 2,
-    "titleExact": 14,
-    "titleFuzzy": 14,
-    "authorHit": 15,
-    "medianMs": 2461,
+    "confidentlyWrong": 1,
+    "titleExact": 16,
+    "titleFuzzy": 16,
+    "authorHit": 16,
+    "medianMs": 3184,
     "medianThumbKb": 5
   },
   "rows": [
@@ -24,9 +24,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 2642,
+      "ms": 4526,
       "lineCount": 3,
-      "thumbnailBytes": 4830
+      "thumbnailBytes": 4853
     },
     {
       "id": "blurry",
@@ -39,10 +39,10 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 93,
-      "ms": 1226,
+      "meanConfidence": 94,
+      "ms": 2538,
       "lineCount": 3,
-      "thumbnailBytes": 5766
+      "thumbnailBytes": 5781
     },
     {
       "id": "very-blurry",
@@ -55,10 +55,10 @@
       "titleSimilarity": 1,
       "authorHit": true,
       "confidence": 98,
-      "meanConfidence": 93,
-      "ms": 1255,
+      "meanConfidence": 91,
+      "ms": 1518,
       "lineCount": 2,
-      "thumbnailBytes": 4220
+      "thumbnailBytes": 4230
     },
     {
       "id": "angled",
@@ -72,7 +72,7 @@
       "authorHit": true,
       "confidence": 89,
       "meanConfidence": 95,
-      "ms": 2120,
+      "ms": 3184,
       "lineCount": 3,
       "thumbnailBytes": 6354
     },
@@ -86,9 +86,9 @@
       "titleFuzzy": false,
       "titleSimilarity": 0.54,
       "authorHit": true,
-      "confidence": 66,
-      "meanConfidence": 81,
-      "ms": 4354,
+      "confidence": 67,
+      "meanConfidence": 93,
+      "ms": 5691,
       "lineCount": 3,
       "thumbnailBytes": 6306
     },
@@ -96,15 +96,15 @@
       "id": "tilted",
       "expectedTitle": "Jane Eyre",
       "expectedAuthor": "Charlotte Brontë",
-      "gotTitle": "Eyre",
-      "gotAuthor": "Jane",
-      "titleExact": false,
-      "titleFuzzy": false,
-      "titleSimilarity": 0.44,
-      "authorHit": false,
-      "confidence": 47,
-      "meanConfidence": 64,
-      "ms": 5753,
+      "gotTitle": "Jane Eyre",
+      "gotAuthor": "Charlotte Brontë",
+      "titleExact": true,
+      "titleFuzzy": true,
+      "titleSimilarity": 1,
+      "authorHit": true,
+      "confidence": 84,
+      "meanConfidence": 61,
+      "ms": 3493,
       "lineCount": 6,
       "thumbnailBytes": 5735
     },
@@ -120,9 +120,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 1297,
+      "ms": 1648,
       "lineCount": 3,
-      "thumbnailBytes": 3884
+      "thumbnailBytes": 3908
     },
     {
       "id": "harsh-glare",
@@ -134,11 +134,11 @@
       "titleFuzzy": true,
       "titleSimilarity": 0.96,
       "authorHit": false,
-      "confidence": 75,
-      "meanConfidence": 83,
-      "ms": 4514,
+      "confidence": 79,
+      "meanConfidence": 84,
+      "ms": 5391,
       "lineCount": 5,
-      "thumbnailBytes": 4583
+      "thumbnailBytes": 4609
     },
     {
       "id": "low-resolution",
@@ -152,9 +152,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 1724,
-      "lineCount": 3,
-      "thumbnailBytes": 4774
+      "ms": 3713,
+      "lineCount": 2,
+      "thumbnailBytes": 4814
     },
     {
       "id": "title-only",
@@ -168,9 +168,9 @@
       "authorHit": true,
       "confidence": 83,
       "meanConfidence": 95,
-      "ms": 2118,
+      "ms": 2721,
       "lineCount": 1,
-      "thumbnailBytes": 3630
+      "thumbnailBytes": 3642
     },
     {
       "id": "author-prominent",
@@ -184,9 +184,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 1103,
+      "ms": 1428,
       "lineCount": 2,
-      "thumbnailBytes": 5045
+      "thumbnailBytes": 5060
     },
     {
       "id": "title-illegible",
@@ -200,9 +200,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 95,
-      "ms": 1237,
+      "ms": 1244,
       "lineCount": 3,
-      "thumbnailBytes": 3482
+      "thumbnailBytes": 3493
     },
     {
       "id": "similar-title-a",
@@ -216,9 +216,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 2461,
+      "ms": 1721,
       "lineCount": 3,
-      "thumbnailBytes": 4716
+      "thumbnailBytes": 4741
     },
     {
       "id": "similar-title-b",
@@ -232,41 +232,41 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 96,
-      "ms": 1567,
+      "ms": 1719,
       "lineCount": 3,
-      "thumbnailBytes": 5363
+      "thumbnailBytes": 5387
     },
     {
       "id": "macedonian",
       "expectedTitle": "Тврдина",
       "expectedAuthor": "Славко Јаневски",
       "gotTitle": "Тврдина",
-      "gotAuthor": "Славко Јаневсеки",
+      "gotAuthor": "Славко Јаневски",
       "titleExact": true,
       "titleFuzzy": true,
       "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 57,
-      "meanConfidence": 84,
-      "ms": 3669,
-      "lineCount": 3,
-      "thumbnailBytes": 3629
+      "confidence": 76,
+      "meanConfidence": 96,
+      "ms": 3819,
+      "lineCount": 2,
+      "thumbnailBytes": 3649
     },
     {
       "id": "macedonian-latin-author",
       "expectedTitle": "Пиреј",
       "expectedAuthor": "Petre M. Andreevski",
-      "gotTitle": "Odbrani raskazi od Petre M. Andreevski",
+      "gotTitle": "Пиреј",
       "gotAuthor": "Petre M. Andreevski",
-      "titleExact": false,
-      "titleFuzzy": false,
-      "titleSimilarity": 0,
+      "titleExact": true,
+      "titleFuzzy": true,
+      "titleSimilarity": 1,
       "authorHit": true,
-      "confidence": 85,
-      "meanConfidence": 85,
-      "ms": 3552,
-      "lineCount": 3,
-      "thumbnailBytes": 3426
+      "confidence": 45,
+      "meanConfidence": 93,
+      "ms": 3949,
+      "lineCount": 2,
+      "thumbnailBytes": 3440
     },
     {
       "id": "noisy-blurbs",
@@ -280,9 +280,9 @@
       "authorHit": true,
       "confidence": 98,
       "meanConfidence": 95,
-      "ms": 2637,
-      "lineCount": 11,
-      "thumbnailBytes": 6519
+      "ms": 3183,
+      "lineCount": 9,
+      "thumbnailBytes": 6605
     },
     {
       "id": "unreadable",
@@ -296,7 +296,7 @@
       "authorHit": false,
       "confidence": 0,
       "meanConfidence": 39,
-      "ms": 6200,
+      "ms": 7338,
       "lineCount": 2,
       "thumbnailBytes": 5895
     }
